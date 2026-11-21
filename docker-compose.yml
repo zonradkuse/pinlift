@@ -1,0 +1,11 @@
+# Serves the app over plain HTTP. Put it behind your TLS-terminating reverse proxy:
+# camera access, installation and the service worker only work over HTTPS.
+services:
+  pinlift:
+    build: .
+    image: pinlift:latest
+    restart: unless-stopped
+    ports:
+      # Loopback only, so the app is reachable through your reverse proxy but not as plain HTTP from the network.
+      # If the proxy runs in Docker, drop "ports" and attach this service to the proxy's network instead.
+      - "127.0.0.1:8080:80"
