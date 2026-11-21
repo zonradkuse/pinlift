@@ -95,13 +95,15 @@ export function Stats() {
 
       <div class="dashboard">
         <Card title="Volume per week (kg)" span>
-          <BarChart bars={bars} unit="kg" label={`Volume lifted per week, last ${weeks} weeks`} {...(wide ? { width: 1080, height: 240 } : {})} />
+          {bars.some((b) => b.value) ? <BarChart bars={bars} unit="kg" label={`Volume lifted per week, last ${weeks} weeks`} {...(wide ? { width: 1080, height: 240 } : {})} />
+            : <p class="body-m muted">No weights lifted in this period.</p>}
         </Card>
         <Card title="Training days">
           <Heatmap volumes={dailyVolume(sessions, lookup)} weeks={wide ? 26 : 15} now={now} />
         </Card>
         <Card title={`Sets per muscle group (last ${MUSCLE_WEEKS} weeks)`}>
           <HBars unit="sets" rows={MUSCLE_GROUPS.map((g) => ({ label: g.name, value: muscleSets.get(g.id) ?? 0 }))} />
+          <p class="body-s muted mt-8">Working sets of strength exercises; cardio isn't counted.</p>
         </Card>
         {selectedDevice && (
           <Card title="Estimated 1-rep max (kg)" span>

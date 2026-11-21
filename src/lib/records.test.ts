@@ -95,17 +95,28 @@ test('dailyVolume sums lifted weight per local calendar day', async () => {
   assert.equal(dayKey(d1), '2026-11-20');
 });
 
-test('muscleCoverage: per group by primary muscles, map muscles split into primary and secondary, cardio ignored', async () => {
+test('muscleCoverage: per group by primary muscles, map muscles split into primary and secondary', async () => {
   const { muscleCoverage } = await import('./stats.ts');
   const chest = device('chest', { primary: ['chest'], secondary: ['triceps', 'shoulders'] });
   const row = device('row', { primary: ['lats', 'upper_back'], secondary: ['biceps', 'chest'] });
   const curl = device('curl', { primary: ['biceps'] });
-  const rower = device('rower', { kind: 'cardio', cardio: 'row', primary: ['quads'] });
-  const c = muscleCoverage([{ device: chest, count: 3 }, { device: row, count: 2 }, { device: curl, count: 0 }, { device: rower, count: 1 }, { count: 1 }]);
+  const c = muscleCoverage([{ device: chest, count: 3 }, { device: row, count: 2 }, { device: curl, count: 0 }, { count: 1 }]);
   assert.equal(c.groups.get('chest'), 3);
   assert.equal(c.groups.get('back'), 2); // lats and upper back are one group: counted once
   assert.equal(c.groups.get('arms') ?? 0, 0); // secondary muscles and devices without sets don't count
-  assert.equal(c.groups.get('legs') ?? 0, 0);
+  assert.deepEqual([...c.trained].sort(), ['back', 'chest']);
   assert.deepEqual([...c.primary].sort(), ['chest', 'lats', 'upper_back']);
   assert.deepEqual([...c.secondary].sort(), ['biceps', 'shoulders', 'triceps']);
+});
+
+test('muscleCoverage: cardio trains its muscles; it adds to counts only when counted (exercises), never as sets', async () => {
+  const { muscleCoverage, workingSetsByEntry } = await import('./stats.ts');
+  const rower = device('rower', { kind: 'cardio', cardio: 'row', primary: ['upper_back', 'quads', 'glutes'] });
+  const planned = muscleCoverage([{ device: rower, count: 1 }]);
+  assert.equal(planned.groups.get('legs'), 1);
+  assert.equal(planned.groups.get('back'), 1);
+  const done = muscleCoverage(workingSetsByEntry(session('s', 0, [cardio('rower', 2000, 480)]), () => rower));
+  assert.equal(done.groups.size, 0); // no sets
+  assert.deepEqual([...done.trained].sort(), ['back', 'glutes', 'legs']);
+  assert.ok(done.primary.has('quads'));
 });

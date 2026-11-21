@@ -29,7 +29,7 @@ An offline-first PWA for tracking gym progress. It has no backend, and data stay
   - Assisted machines (dip/chin assist) count progress as less assistance and add no lifted weight.
   - One QR code can open several exercises (Smith machine, cable tower); when linking a new code mid-workout, the next devices of your plan are offered first.
 - **Workouts**: Upper body, Lower body, Core, Push, Pull, Full body and Cardio are included. You can build your own from muscle groups, reorder devices, or train freely.
-  - The editor and the plan preview show a muscle map and the number of exercises per muscle group, and list groups the workout doesn't train. The summary after a workout shows the same with working sets.
+  - The editor and the plan preview show a muscle map and the number of exercises per muscle group, and list groups the workout doesn't train. The summary after a workout shows the same with working sets. Cardio works the muscles of its device (the rower: back, legs, glutes) and counts as an exercise in a plan, but not as sets.
   - Tapping a plan shows its machines with today's targets; only ▶ (or *Start workout*) starts it.
 - **Cardio**: treadmill, rower, bike, cross trainer and stair climber.
   - You log minutes and seconds plus distance (optional for bike and cross trainer; floors on the stair climber). Speed and pace (per km, or per 500 m for rowing) are calculated, and implausible values are flagged.
@@ -160,7 +160,7 @@ Every machine has a pictogram drawn from data rather than an image file. `data/p
 ### Tests
 
 - **Unit tests:** about 85, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
-- **End-to-end tests:** 46 Playwright tests. They cover:
+- **End-to-end tests:** 47 Playwright tests. They cover:
   - scanning and data transfer, with Chromium's fake camera fed generated QR videos;
   - a redeploy on a server that caches like GitHub Pages;
   - offline mode, two open tabs, damaged imports, the crash screen and violations of the security policy.

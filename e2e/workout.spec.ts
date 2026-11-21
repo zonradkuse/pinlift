@@ -92,3 +92,18 @@ test('muscle group overview while building a workout and after finishing one', a
   await expect(done.getByRole('listitem', { name: 'Glutes: 2 sets' })).toBeVisible();
   await expect(done).toContainText('Not trained: Chest, Back, Shoulders, Arms, Core');
 });
+
+test('a rowing-only workout counts as a training day and shows its muscles, but adds no sets', async ({ page }) => {
+  await page.goto('./#/device/rower');
+  await page.getByLabel('Minutes').fill('8');
+  await page.getByLabel(/Distance/).fill('2000');
+  await page.getByRole('button', { name: 'Log row' }).click();
+  await finishWorkout(page);
+  const done = page.getByRole('region', { name: 'Muscles trained' });
+  await expect(done).toContainText('Not trained: Chest, Shoulders, Arms, Core');
+  await expect(done.getByRole('listitem')).toHaveCount(0); // no sets: no bars
+
+  await page.goto('./#/stats');
+  await expect(page.locator('svg[aria-label^="Training days"] rect').last().locator('title')).not.toContainText('rest day');
+  await expect(page.getByText('No weights lifted in this period.')).toBeVisible();
+});

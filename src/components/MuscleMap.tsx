@@ -79,15 +79,17 @@ export function MuscleMap({ primary, secondary }: { primary: Muscle[]; secondary
 
 /** What a workout covers: muscle map, a count per muscle group, and the groups it leaves out. */
 export function MuscleOverview({ title, coverage: c, unit }: { title: string; coverage: MuscleCoverage; unit: string }) {
-  const missing = MUSCLE_GROUPS.filter((g) => !c.groups.get(g.id)).map((g) => g.name);
+  const missing = MUSCLE_GROUPS.filter((g) => !c.trained.has(g.id)).map((g) => g.name);
+  const uncounted = [...c.trained].some((g) => !c.groups.has(g)); // cardio: trained, but no sets
   return (
     <section class="card outlined" aria-label={title}>
       <h2 class="title-m">{title}</h2>
-      <div class="muscle-overview">
+      <div class={c.groups.size ? 'muscle-overview' : 'mt-8'}>
         <MuscleMap primary={[...c.primary]} secondary={[...c.secondary]} />
-        <HBars unit={unit} rows={MUSCLE_GROUPS.map((g) => ({ label: g.name, value: c.groups.get(g.id) ?? 0 }))} />
+        {c.groups.size > 0 && <HBars unit={unit} rows={MUSCLE_GROUPS.map((g) => ({ label: g.name, value: c.groups.get(g.id) ?? 0 }))} />}
       </div>
       {missing.length > 0 && <p class="body-m muted">Not trained: {missing.join(', ')}</p>}
+      {uncounted && <p class="body-s muted">Cardio works the muscles shown but isn't counted as {unit}.</p>}
     </section>
   );
 }

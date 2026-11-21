@@ -6,7 +6,8 @@ const DAY_LABELS: [number, string][] = [[0, 'Mon'], [2, 'Wed'], [4, 'Fri']];
 // Sequential ramp in one hue: the chart color at increasing opacity on the surface (empty days are neutral).
 const LEVELS = [0.3, 0.55, 0.8, 1];
 
-/** Training days of the last `weeks` weeks, GitHub style: one cell per day, darker = more weight lifted. */
+/** Training days of the last `weeks` weeks, GitHub style: one cell per day, darker = more weight lifted.
+ *  A day in `volumes` with nothing lifted (cardio) still counts and gets the lightest shade. */
 export function Heatmap({ volumes, weeks, now = Date.now() }: { volumes: Map<string, number>; weeks: number; now?: number }) {
   const today = new Date(now);
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7)).getTime();
@@ -20,12 +21,12 @@ export function Heatmap({ volumes, weeks, now = Date.now() }: { volumes: Map<str
     for (let d = 0; d < 7; d++) {
       const ts = weekStart.getTime() + d * DAY_MS;
       if (ts > now) continue;
-      const v = volumes.get(dayKey(ts)) ?? 0;
-      const level = v ? LEVELS[Math.min(LEVELS.length - 1, Math.floor((v / max) * LEVELS.length))] : 0;
+      const v = volumes.get(dayKey(ts)), trained = v !== undefined;
+      const level = v ? LEVELS[Math.min(LEVELS.length - 1, Math.floor((v / max) * LEVELS.length))] : LEVELS[0];
       cells.push(
         <rect x={LEFT + w * STEP} y={TOP + d * STEP} width={CELL} height={CELL} rx={2}
-          fill={v ? 'var(--chart-1)' : 'var(--md-surface-container-high)'} fill-opacity={v ? level : 1}>
-          <title>{`${fmtDate(ts)}: ${v ? fmtKg(Math.round(v)) : 'rest day'}`}</title>
+          fill={trained ? 'var(--chart-1)' : 'var(--md-surface-container-high)'} fill-opacity={trained ? level : 1}>
+          <title>{`${fmtDate(ts)}: ${!trained ? 'rest day' : v ? fmtKg(Math.round(v)) : 'workout without weights'}`}</title>
         </rect>,
       );
     }

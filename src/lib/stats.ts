@@ -205,17 +205,22 @@ export function compareWeight(kg: number): string | null {
   return `about ${n} ${n === 1 ? o[1] : o[2]}`;
 }
 
-export interface MuscleCoverage { groups: Map<string, number>; primary: Set<Muscle>; secondary: Set<Muscle> }
+export interface MuscleCoverage { groups: Map<string, number>; trained: Set<string>; primary: Set<Muscle>; secondary: Set<Muscle> }
 
-/** What a set of exercises trains: `count` (devices or sets) per muscle group by primary muscles, and the muscles
- *  to highlight on a muscle map. Items with a zero count and cardio devices are left out. */
-export function muscleCoverage(items: { device?: Device; count: number }[]): MuscleCoverage {
-  const out: MuscleCoverage = { groups: new Map(), primary: new Set(), secondary: new Set() };
-  for (const { device: d, count } of items) {
-    if (!d || !count || d.kind === 'cardio') continue;
+/** What a set of exercises trains, by the devices' primary muscles: `count` (exercises or working sets) per muscle
+ *  group, the groups `trained` at all, and the muscles to highlight on a muscle map. An item counts as trained when
+ *  its count is positive or `trained` says so (a cardio log works the muscles but has no sets). */
+export function muscleCoverage(items: { device?: Device; count: number; trained?: boolean }[]): MuscleCoverage {
+  const out: MuscleCoverage = { groups: new Map(), trained: new Set(), primary: new Set(), secondary: new Set() };
+  for (const { device: d, count, trained = count > 0 } of items) {
+    if (!d || !trained) continue;
     d.primary.forEach((m) => out.primary.add(m));
     d.secondary.forEach((m) => out.secondary.add(m));
-    for (const g of MUSCLE_GROUPS) if (g.muscles.some((m) => d.primary.includes(m))) out.groups.set(g.id, (out.groups.get(g.id) ?? 0) + count);
+    for (const g of MUSCLE_GROUPS) {
+      if (!g.muscles.some((m) => d.primary.includes(m))) continue;
+      out.trained.add(g.id);
+      if (count) out.groups.set(g.id, (out.groups.get(g.id) ?? 0) + count);
+    }
   }
   out.primary.forEach((m) => out.secondary.delete(m));
   return out;
@@ -225,9 +230,11 @@ export function muscleCoverage(items: { device?: Device; count: number }[]): Mus
 export const setsPerMuscleGroup = (sessions: Iterable<Session>, getDevice: DeviceLookup, since: number) =>
   muscleCoverage(live(sessions).filter((s) => s.startedAt >= since).flatMap((s) => workingSetsByEntry(s, getDevice))).groups;
 
-/** Per entry of a session: its device and number of working sets. */
-export const workingSetsByEntry = (s: Session, getDevice: DeviceLookup) =>
-  s.entries.map((e) => ({ device: getDevice(e.deviceId), count: e.sets.filter(isWork).length }));
+/** Per entry of a session: its device and number of working sets; cardio trains without sets. */
+export const workingSetsByEntry = (s: Session, getDevice: DeviceLookup) => s.entries.map((e) => {
+  const count = e.sets.filter(isWork).length;
+  return { device: getDevice(e.deviceId), count, trained: count > 0 || !!e.cardio };
+});
 
 /** Local calendar day as YYYY-MM-DD. */
 export const dayKey = (ts: number) => {

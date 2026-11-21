@@ -96,7 +96,7 @@ export function Summary({ id }: { id: string }) {
         ))}</ul>
       </>}
 
-      {coverage.groups.size > 0 && !editing && <div class="mt-16"><MuscleOverview title="Sets per muscle group" unit="sets" coverage={coverage} /></div>}
+      {coverage.trained.size > 0 && !editing && <div class="mt-16"><MuscleOverview title={coverage.groups.size ? 'Sets per muscle group' : 'Muscles trained'} unit="sets" coverage={coverage} /></div>}
 
       <h2 class="title-m section-title">Exercises</h2>
       <ul class="list">{[...new Set(s.entries.map((e) => e.deviceId))].map((devId) => {
