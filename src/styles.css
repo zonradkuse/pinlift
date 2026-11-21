@@ -353,6 +353,7 @@ body.resting .snackbar { bottom: calc(96px + var(--safe-b)); }
 .data-table th { text-align: left; padding: 8px 8px 8px 0; font-weight: 500; }
 .data-table td { padding: 10px 8px 10px 0; border-top: 1px solid var(--md-outline-variant); }
 .data-table .right { text-align: right; padding-right: 0; }
+.muscle-overview { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; align-items: center; margin-top: 8px; }
 .hbars { display: grid; grid-template-columns: auto 1fr auto; gap: 10px 12px; align-items: center; }
 .hbar { display: contents; }
 .hbar-track { height: 14px; }

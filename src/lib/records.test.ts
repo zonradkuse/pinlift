@@ -94,3 +94,18 @@ test('dailyVolume sums lifted weight per local calendar day', async () => {
   assert.equal(days.get(dayKey(d2)), 100);
   assert.equal(dayKey(d1), '2026-11-20');
 });
+
+test('muscleCoverage: per group by primary muscles, map muscles split into primary and secondary, cardio ignored', async () => {
+  const { muscleCoverage } = await import('./stats.ts');
+  const chest = device('chest', { primary: ['chest'], secondary: ['triceps', 'shoulders'] });
+  const row = device('row', { primary: ['lats', 'upper_back'], secondary: ['biceps', 'chest'] });
+  const curl = device('curl', { primary: ['biceps'] });
+  const rower = device('rower', { kind: 'cardio', cardio: 'row', primary: ['quads'] });
+  const c = muscleCoverage([{ device: chest, count: 3 }, { device: row, count: 2 }, { device: curl, count: 0 }, { device: rower, count: 1 }, { count: 1 }]);
+  assert.equal(c.groups.get('chest'), 3);
+  assert.equal(c.groups.get('back'), 2); // lats and upper back are one group: counted once
+  assert.equal(c.groups.get('arms') ?? 0, 0); // secondary muscles and devices without sets don't count
+  assert.equal(c.groups.get('legs') ?? 0, 0);
+  assert.deepEqual([...c.primary].sort(), ['chest', 'lats', 'upper_back']);
+  assert.deepEqual([...c.secondary].sort(), ['biceps', 'shoulders', 'triceps']);
+});

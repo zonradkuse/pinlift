@@ -2,7 +2,9 @@ import { useState } from 'preact/hooks';
 import { Icon, ListItem, TopBar, confirmDialog } from '../components/ui.tsx';
 import { Pictogram } from '../components/Pictogram.tsx';
 import { useStore } from '../lib/store.ts';
-import { allDevices, deviceName } from '../lib/selectors.ts';
+import { allDevices, deviceName, getDevice } from '../lib/selectors.ts';
+import { MuscleOverview } from '../components/MuscleMap.tsx';
+import { muscleCoverage } from '../lib/stats.ts';
 import { deleteWorkout, saveWorkout } from '../lib/actions.ts';
 import { uid } from '../lib/id.ts';
 import { navigate } from '../lib/router.ts';
@@ -54,6 +56,8 @@ export function WorkoutEditor({ id }: { id: string }) {
             </>} />
           ))}
         </ul>
+        {ids.length > 0 && <MuscleOverview title="Exercises per muscle group" unit="exercises"
+          coverage={muscleCoverage(ids.map((devId) => ({ device: getDevice(data, devId), count: 1 })))} />}
 
         <h2 class="title-m section-title" style={{ marginBottom: 0 }}>Add devices</h2>
         <div class="chips wrap" role="group" aria-label="Muscle groups">

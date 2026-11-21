@@ -7,7 +7,8 @@ import { toast } from '../lib/ui-state.ts';
 import { useDerived } from '../lib/derived.ts';
 import { navigate, useRoute } from '../lib/router.ts';
 import { href, to } from '../lib/routes.ts';
-import { compareWeight, isWork, sessionSummary, type SessionSummary } from '../lib/stats.ts';
+import { compareWeight, isWork, muscleCoverage, sessionSummary, workingSetsByEntry, type SessionSummary } from '../lib/stats.ts';
+import { MuscleOverview } from '../components/MuscleMap.tsx';
 import { badgeById } from '../lib/badges.ts';
 import { backupReminder } from '../lib/backup.ts';
 import { formatDuration } from '../lib/cardio.ts';
@@ -42,7 +43,9 @@ export function Summary({ id }: { id: string }) {
   const s = data.sessions[id];
   if (!s || s.deleted) return <main class="screen no-nav"><TopBar title="Workout" up={to.history()} /><Empty icon="history">Workout not found.</Empty></main>;
   const fresh = query.get('fresh') === '1';
-  const sum = sessionSummary(s, deviceLookup(data));
+  const lookup = deviceLookup(data);
+  const sum = sessionSummary(s, lookup);
+  const coverage = muscleCoverage(workingSetsByEntry(s, lookup));
   const myPrs = prs.filter((p) => p.sessionId === id);
   const myBadges = badges.filter((b) => b.sessionId === id);
   const workout = workoutOf(data, s);
@@ -92,6 +95,8 @@ export function Summary({ id }: { id: string }) {
           <ListItem leading={<span class="medal small"><Icon name="emoji_events" size={22} /></span>} title={deviceName(data, p.deviceId)} supporting={fmtPr(p)} />
         ))}</ul>
       </>}
+
+      {coverage.groups.size > 0 && !editing && <div class="mt-16"><MuscleOverview title="Sets per muscle group" unit="sets" coverage={coverage} /></div>}
 
       <h2 class="title-m section-title">Exercises</h2>
       <ul class="list">{[...new Set(s.entries.map((e) => e.deviceId))].map((devId) => {

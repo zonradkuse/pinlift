@@ -1,4 +1,7 @@
 import type { Muscle } from '../lib/types.ts';
+import type { MuscleCoverage } from '../lib/stats.ts';
+import { MUSCLE_GROUPS } from '../data/catalog.ts';
+import { HBars } from './HBars.tsx';
 
 // Stylised anatomy, drawn for this app. Shapes describe the figure's right side (viewer's left)
 // and are mirrored unless `c` (centre) is set. Coordinates live in a 100×200 box per figure.
@@ -71,5 +74,20 @@ export function MuscleMap({ primary, secondary }: { primary: Muscle[]; secondary
         {secondary.length > 0 && <span class="row" style={{ gap: '6px' }}><i style={{ width: 10, height: 10, borderRadius: 5, background: 'var(--muscle-secondary)' }} />Secondary</span>}
       </figcaption>
     </figure>
+  );
+}
+
+/** What a workout covers: muscle map, a count per muscle group, and the groups it leaves out. */
+export function MuscleOverview({ title, coverage: c, unit }: { title: string; coverage: MuscleCoverage; unit: string }) {
+  const missing = MUSCLE_GROUPS.filter((g) => !c.groups.get(g.id)).map((g) => g.name);
+  return (
+    <section class="card outlined" aria-label={title}>
+      <h2 class="title-m">{title}</h2>
+      <div class="muscle-overview">
+        <MuscleMap primary={[...c.primary]} secondary={[...c.secondary]} />
+        <HBars unit={unit} rows={MUSCLE_GROUPS.map((g) => ({ label: g.name, value: c.groups.get(g.id) ?? 0 }))} />
+      </div>
+      {missing.length > 0 && <p class="body-m muted">Not trained: {missing.join(', ')}</p>}
+    </section>
   );
 }

@@ -1,4 +1,4 @@
-import type { Device, Session, StrengthSet } from './types.ts';
+import type { Device, Muscle, Session, StrengthSet } from './types.ts';
 import { MUSCLE_GROUPS } from '../data/catalog.ts';
 import { speedKmh } from './cardio.ts';
 
@@ -205,19 +205,29 @@ export function compareWeight(kg: number): string | null {
   return `about ${n} ${n === 1 ? o[1] : o[2]}`;
 }
 
-/** Working sets per muscle group (by the devices' primary muscles) for sessions started at or after `since`. */
-export function setsPerMuscleGroup(sessions: Iterable<Session>, getDevice: DeviceLookup, since: number): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const s of live(sessions).filter((x) => x.startedAt >= since)) {
-    for (const e of s.entries) {
-      const sets = e.sets.filter(isWork).length;
-      const muscles = getDevice(e.deviceId)?.primary ?? [];
-      if (!sets || !muscles.length) continue;
-      for (const g of MUSCLE_GROUPS) if (g.muscles.some((m) => muscles.includes(m))) out.set(g.id, (out.get(g.id) ?? 0) + sets);
-    }
+export interface MuscleCoverage { groups: Map<string, number>; primary: Set<Muscle>; secondary: Set<Muscle> }
+
+/** What a set of exercises trains: `count` (devices or sets) per muscle group by primary muscles, and the muscles
+ *  to highlight on a muscle map. Items with a zero count and cardio devices are left out. */
+export function muscleCoverage(items: { device?: Device; count: number }[]): MuscleCoverage {
+  const out: MuscleCoverage = { groups: new Map(), primary: new Set(), secondary: new Set() };
+  for (const { device: d, count } of items) {
+    if (!d || !count || d.kind === 'cardio') continue;
+    d.primary.forEach((m) => out.primary.add(m));
+    d.secondary.forEach((m) => out.secondary.add(m));
+    for (const g of MUSCLE_GROUPS) if (g.muscles.some((m) => d.primary.includes(m))) out.groups.set(g.id, (out.groups.get(g.id) ?? 0) + count);
   }
+  out.primary.forEach((m) => out.secondary.delete(m));
   return out;
 }
+
+/** Working sets per muscle group (by the devices' primary muscles) for sessions started at or after `since`. */
+export const setsPerMuscleGroup = (sessions: Iterable<Session>, getDevice: DeviceLookup, since: number) =>
+  muscleCoverage(live(sessions).filter((s) => s.startedAt >= since).flatMap((s) => workingSetsByEntry(s, getDevice))).groups;
+
+/** Per entry of a session: its device and number of working sets. */
+export const workingSetsByEntry = (s: Session, getDevice: DeviceLookup) =>
+  s.entries.map((e) => ({ device: getDevice(e.deviceId), count: e.sets.filter(isWork).length }));
 
 /** Local calendar day as YYYY-MM-DD. */
 export const dayKey = (ts: number) => {

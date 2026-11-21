@@ -4,6 +4,8 @@ import { useStore } from '../lib/store.ts';
 import { activeSession, devicesByIds, devicesWithQr } from '../lib/selectors.ts';
 import { href, to } from '../lib/routes.ts';
 import { MUSCLES } from '../data/catalog.ts';
+import { MuscleOverview } from '../components/MuscleMap.tsx';
+import { muscleCoverage } from '../lib/stats.ts';
 
 /** A workout plan before starting it: devices with targets; starting needs an explicit tap. */
 export function PlanPreview({ id }: { id: string }) {
@@ -22,6 +24,7 @@ export function PlanPreview({ id }: { id: string }) {
       <p class="body-m muted">{devices.length} devices · {muscles.map((m) => MUSCLES[m]).join(', ')}</p>
       {/* The running workout's sets count as today, not as "last time". */}
       <ul class="list mt-8">{devices.map((d) => <PlanRow key={d.id} data={data} device={d} session={activeSession(data)} withQr={withQr} />)}</ul>
+      <div class="mt-16"><MuscleOverview title="Exercises per muscle group" unit="exercises" coverage={muscleCoverage(devices.map((device) => ({ device, count: 1 })))} /></div>
       <div class="bottom-bar">
         <button class="btn large block interactive" onClick={() => start(w)}><Icon name="play_arrow" />Start workout</button>
       </div>

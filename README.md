@@ -29,6 +29,7 @@ An offline-first PWA for tracking gym progress. It has no backend, and data stay
   - Assisted machines (dip/chin assist) count progress as less assistance and add no lifted weight.
   - One QR code can open several exercises (Smith machine, cable tower); when linking a new code mid-workout, the next devices of your plan are offered first.
 - **Workouts**: Upper body, Lower body, Core, Push, Pull, Full body and Cardio are included. You can build your own from muscle groups, reorder devices, or train freely.
+  - The editor and the plan preview show a muscle map and the number of exercises per muscle group, and list groups the workout doesn't train. The summary after a workout shows the same with working sets.
   - Tapping a plan shows its machines with today's targets; only ▶ (or *Start workout*) starts it.
 - **Cardio**: treadmill, rower, bike, cross trainer and stair climber.
   - You log minutes and seconds plus distance (optional for bike and cross trainer; floors on the stair climber). Speed and pace (per km, or per 500 m for rowing) are calculated, and implausible values are flagged.
@@ -87,6 +88,21 @@ The secret and tokens are stored only on that device and are never included in Q
 
 There is no server. Each device holds a full copy of the data in IndexedDB, and devices sync by scanning QR codes or exchanging a file. Every rule that merging relies on therefore runs in the browser.
 
+```mermaid
+flowchart TD
+  UI["UI · src/screens, src/components<br/>Preact views; no domain rules"]
+  APP["App layer · store · actions · selectors · ui-state<br/>state container, mutations, pure reads, transient UI state"]
+  DOMAIN["Domain · stats · progression · badges · merge · sync · wire · transfer · base45 · format · cardio · strava<br/>pure TypeScript, unit-tested in Node"]
+  ADAPT["Browser adapters · db · router · pwa · strava-flow · backup<br/>IndexedDB, hash routing, service worker, OAuth redirect, downloads"]
+  UI --> APP
+  UI --> DOMAIN
+  APP --> DOMAIN
+  APP --> ADAPT
+  UI --> ADAPT
+```
+
+Dependencies point downwards only: `src/lib` never imports UI code.
+
 ### Layers
 
 | Layer | Modules | Responsibility |
@@ -144,7 +160,7 @@ Every machine has a pictogram drawn from data rather than an image file. `data/p
 ### Tests
 
 - **Unit tests:** about 85, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
-- **End-to-end tests:** 45 Playwright tests. They cover:
+- **End-to-end tests:** 46 Playwright tests. They cover:
   - scanning and data transfer, with Chromium's fake camera fed generated QR videos;
   - a redeploy on a server that caches like GitHub Pages;
   - offline mode, two open tabs, damaged imports, the crash screen and violations of the security policy.
@@ -173,3 +189,9 @@ E2E_PREBUILT=1 npm run e2e                         # test the existing dist/ (as
 The end-to-end tests feed Chromium's fake camera with generated QR-code videos, so device scanning and multi-code transfers are tested through the real camera pipeline.
 
 **Stack**: Preact + TypeScript + Vite, `uqr` (QR generation), and `jsqr` (QR decoding fallback when the native `BarcodeDetector` is unavailable, e.g. iOS and desktop Linux/Windows). The service worker, IndexedDB store, router, charts and Base45 codec are hand-written. The design follows Material Design 3: tokens are generated from seed `#F4511E` with neutral surfaces, and the orange primary is tuned to keep 4.5:1 contrast for button text. There are light and dark themes, a navigation rail on desktop, and Material Symbols icons. The machine pictograms are drawn for this app (`components/Pictogram.tsx`, `data/pictograms.ts`).
+
+## Notes
+
+- **Device images**: there are no photos or GIFs of the gym80 machines, because their imagery is copyrighted. Each device shows a muscle-map figure and form cues, plus a link to technique videos.
+- **QR codes on machines**: the app doesn't need to know what a machine's QR code contains. Any code can be linked to a device once.
+- **Data model**: PRs and badges are derived from workout history rather than stored, so merging data from two devices can't make them inconsistent.

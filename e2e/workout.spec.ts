@@ -66,8 +66,29 @@ test('tapping a workout plan shows it without starting; Start starts it', async 
   await page.getByRole('button', { name: /^Lower body/ }).click();
   await expect(page).toHaveURL(/#\/plan\/w-lower$/);
   await expect(page.getByRole('link', { name: /Leg Press/ })).toBeVisible();
+  const groups = page.getByRole('region', { name: 'Exercises per muscle group' });
+  await expect(groups.getByRole('listitem', { name: 'Legs: 6 exercises' })).toBeVisible();
+  await expect(groups).toContainText('Not trained: Chest, Back, Shoulders, Arms, Core');
   expect(await storedOpenSessions(page)).toBe(0);
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page).toHaveURL(/#\/session/);
   await expect(page.getByRole('heading', { name: 'Lower body' })).toBeVisible();
+});
+
+test('muscle group overview while building a workout and after finishing one', async ({ page }) => {
+  await page.goto('./#/workout/new');
+  const plan = page.getByRole('region', { name: 'Exercises per muscle group' });
+  await expect(plan).toHaveCount(0);
+  await page.getByRole('button', { name: 'Chest', exact: true }).click();
+  await page.getByRole('button', { name: /^Chest Press/ }).click();
+  await expect(plan.getByRole('listitem', { name: 'Chest: 1 exercise' })).toBeVisible();
+  await expect(plan.getByRole('listitem', { name: 'Back: 0 exercises' })).toBeVisible();
+  await expect(plan).toContainText('Not trained: Back, Shoulders, Arms, Core, Legs, Glutes');
+
+  await logSets(page, 'leg-press', [[100, 10], [100, 10]]);
+  await finishWorkout(page);
+  const done = page.getByRole('region', { name: 'Sets per muscle group' });
+  await expect(done.getByRole('listitem', { name: 'Legs: 2 sets' })).toBeVisible();
+  await expect(done.getByRole('listitem', { name: 'Glutes: 2 sets' })).toBeVisible();
+  await expect(done).toContainText('Not trained: Chest, Back, Shoulders, Arms, Core');
 });
