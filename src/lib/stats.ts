@@ -19,17 +19,19 @@ export const isWork = (s: StrengthSet) => s.kind !== 'warmup';
 /** Only regular working sets can be records or drive suggestions (warm-ups and drop sets are easier by design). */
 export const isTopSet = (s: StrengthSet) => !s.kind;
 
-export interface SessionSummary { volume: number; sets: number; reps: number; distanceM: number; cardioSec: number; durationSec: number }
+export interface SessionSummary { volume: number; sets: number; reps: number; holdSec: number; distanceM: number; cardioSec: number; durationSec: number }
 
-/** Totals of working sets; assisted machines add no lifted weight. */
+/** Totals of working sets; assisted machines add no lifted weight, holds count as time, not reps or weight. */
 export function sessionSummary(s: Session, getDevice?: DeviceLookup, now = Date.now()): SessionSummary {
-  const sum = { volume: 0, sets: 0, reps: 0, distanceM: 0, cardioSec: 0,
+  const sum = { volume: 0, sets: 0, reps: 0, holdSec: 0, distanceM: 0, cardioSec: 0,
     durationSec: Math.round(((s.endedAt ?? now) - s.startedAt) / 1000) };
   for (const e of s.entries) {
-    const assisted = getDevice?.(e.deviceId)?.assisted;
+    const dev = getDevice?.(e.deviceId);
     for (const set of e.sets.filter(isWork)) {
-      if (!assisted) sum.volume += set.weight * set.reps;
-      sum.sets++; sum.reps += set.reps;
+      sum.sets++;
+      if (dev?.timed) { sum.holdSec += set.reps; continue; }
+      if (!dev?.assisted) sum.volume += set.weight * set.reps;
+      sum.reps += set.reps;
     }
     if (e.cardio) { sum.distanceM += e.cardio.distanceM; sum.cardioSec += e.cardio.durationSec; }
   }
@@ -60,12 +62,12 @@ export const bestSet = (sets: StrengthSet[], assisted?: boolean): StrengthSet | 
   sets.reduce<StrengthSet | undefined>((best, s) =>
     !best || isHarder(s.weight, best.weight, assisted) || (s.weight === best.weight && s.reps > best.reps) ? s : best, undefined);
 
-export type ProgressMetric = 'e1rm' | 'assist' | 'reps' | 'speed' | 'floors';
+export type ProgressMetric = 'e1rm' | 'assist' | 'reps' | 'hold' | 'speed' | 'floors';
 
 /** One point per session for the device's progress chart. */
 export function progressSeries(sessions: Iterable<Session>, dev: Device): { metric: ProgressMetric; points: { x: number; y: number }[] } {
   const metric: ProgressMetric = dev.kind === 'cardio' ? (dev.cardio === 'stairs' ? 'floors' : 'speed')
-    : dev.assisted ? 'assist' : dev.bodyweight ? 'reps' : 'e1rm';
+    : dev.assisted ? 'assist' : dev.timed ? 'hold' : dev.bodyweight ? 'reps' : 'e1rm';
   const value = (entries: Session['entries']): number | undefined => {
     if (metric === 'speed' || metric === 'floors') {
       const v = entries.map((e) => e.cardio).filter((c) => c && (metric === 'floors' ? c.floors : c.distanceM > 0))
@@ -75,7 +77,7 @@ export function progressSeries(sessions: Iterable<Session>, dev: Device): { metr
     const top = entries.flatMap((e) => e.sets).filter(isTopSet);
     if (!top.length) return undefined;
     return metric === 'assist' ? Math.min(...top.map((x) => x.weight))
-      : Math.max(...top.map((x) => (metric === 'reps' ? x.reps : e1rm(x.weight, x.reps))));
+      : Math.max(...top.map((x) => (metric === 'e1rm' ? e1rm(x.weight, x.reps) : x.reps)));
   };
   const points = live(sessions).flatMap((s) => {
     const y = value(s.entries.filter((e) => e.deviceId === dev.id));
@@ -92,7 +94,7 @@ export function bestSetsByDevice(sessions: Iterable<Session>, getDevice: DeviceL
     const used = new Set<string>();
     for (const e of s.entries) {
       const d = getDevice(e.deviceId);
-      if (d?.assisted || d?.bodyweight) continue;
+      if (d?.assisted || d?.bodyweight || d?.timed) continue;
       for (const set of e.sets.filter(isTopSet)) {
         const v = e1rm(set.weight, set.reps), b = out.get(e.deviceId);
         if (!b || v > b.e1rm) out.set(e.deviceId, { set, e1rm: v, uses: b?.uses ?? 0 });
@@ -113,7 +115,7 @@ export const cardioLogs = (sessions: Iterable<Session>, deviceId: string): Cardi
 export const bestCardio = (logs: CardioEntry[]) => logs.filter((l) => l.log.distanceM >= MIN_SPEED_PR_DISTANCE)
   .reduce<CardioEntry | undefined>((b, l) => (!b || speedKmh(l.log.distanceM, l.log.durationSec) > speedKmh(b.log.distanceM, b.log.durationSec) ? l : b), undefined);
 
-export type PrKind = 'weight' | 'assist' | 'added' | 'reps' | 'speed' | 'distance' | 'floors';
+export type PrKind = 'weight' | 'assist' | 'added' | 'reps' | 'hold' | 'speed' | 'distance' | 'floors';
 export interface PR { sessionId: string; deviceId: string; kind: PrKind; value: number; previous: number; at: number }
 
 export const MIN_SPEED_PR_DISTANCE = 1000;
@@ -123,7 +125,7 @@ interface Best { weight: number; assist: number; reps: number; speed: number; di
 /**
  * Personal records in chronological order; at most one per device and session. A device's first use is the baseline.
  * Strength records are the heaviest weight (least assistance on assisted machines); extra reps are progress, not records.
- * Bodyweight exercises: more added weight, otherwise more reps in one set.
+ * Bodyweight and timed exercises: more (added) weight, otherwise more reps or a longer hold in one set.
  */
 export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup): PR[] {
   const best = new Map<string, Best>();
@@ -136,7 +138,7 @@ export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup
       for (const set of e.sets) {
         if (set.reps < 1 || !isTopSet(set)) continue;
         if (dev?.assisted) b.assist = Math.min(b.assist, set.weight); else b.weight = Math.max(b.weight, set.weight); // see isHarder
-        if (dev?.bodyweight) b.reps = Math.max(b.reps, set.reps);
+        if (dev?.bodyweight || dev?.timed) b.reps = Math.max(b.reps, set.reps);
       }
       if (e.cardio) {
         b.distance = Math.max(b.distance, e.cardio.distanceM);
@@ -150,9 +152,10 @@ export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup
       if (prev) {
         const at = s.endedAt ?? s.startedAt;
         const pr = (kind: PrKind, value: number, previous: number) => out.push({ sessionId: s.id, deviceId, kind, value, previous, at });
-        if (getDevice?.(deviceId)?.bodyweight) {
-          if (cur.weight > prev.weight) pr('added', cur.weight, prev.weight);
-          else if (cur.reps > prev.reps && prev.reps > 0) pr('reps', cur.reps, prev.reps);
+        const dev = getDevice?.(deviceId);
+        if (dev?.bodyweight || dev?.timed) {
+          if (cur.weight > prev.weight && (dev.bodyweight || prev.weight > 0)) pr(dev.bodyweight ? 'added' : 'weight', cur.weight, prev.weight);
+          else if (cur.reps > prev.reps && prev.reps > 0) pr(dev.timed ? 'hold' : 'reps', cur.reps, prev.reps);
         } else if (cur.weight > prev.weight && prev.weight > 0) pr('weight', cur.weight, prev.weight);
         else if (cur.assist < prev.assist && prev.assist < Infinity) pr('assist', cur.assist, prev.assist);
         else if (cur.speed > prev.speed && prev.speed > 0) pr('speed', cur.speed, prev.speed);

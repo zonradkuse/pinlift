@@ -6,6 +6,9 @@ const s = (id: string, name: string, primary: Muscle[], secondary: Muscle[], ste
 /** Bodyweight exercise: the weight field is added weight (vest, belt); `reps` is the default rep range. */
 const b = (id: string, name: string, primary: Muscle[], secondary: Muscle[], reps: [number, number], description: string, cues: string[]): Device =>
   ({ ...s(id, name, primary, secondary, 2.5, description, cues), bodyweight: true, reps });
+/** Hold exercise: logged as seconds held (in `reps`); the range is in seconds. */
+const h = (id: string, name: string, primary: Muscle[], secondary: Muscle[], secs: [number, number], description: string, cues: string[]): Device =>
+  ({ ...b(id, name, primary, secondary, secs, description, cues), timed: true });
 const c = (id: string, name: string, cardio: CardioType, primary: Muscle[], description: string, cues: string[]): Device =>
   ({ id, name, kind: 'cardio', cardio, primary, secondary: [], step: 0, description, cues });
 
@@ -169,6 +172,25 @@ export const CATALOG: Device[] = [
   b('crunch', 'Crunch', ['abs'], ['obliques'], [15, 25],
     'Lying on your back with bent knees, curl the shoulders off the floor.',
     ['Lower back stays on the floor', 'Do not pull on your neck', 'Exhale as you curl up']),
+  // Holds (timed)
+  h('plank', 'Plank', ['abs'], ['obliques', 'shoulders', 'glutes'], [30, 60],
+    'Hold one straight line from head to heels on the forearms and toes.',
+    ['Elbows under the shoulders', 'Squeeze glutes and brace the abs: hips neither sag nor pike', 'Breathe steadily', 'Stop when the hips drop; quality beats time']),
+  h('side-plank', 'Side Plank', ['obliques'], ['abs', 'abductors', 'shoulders'], [20, 45],
+    'Hold the body straight on one forearm and the side of the foot. Log each side as a set.',
+    ['Elbow under the shoulder', 'Hips up, body in one line', 'Easier: bottom knee on the floor']),
+  h('wall-sit', 'Wall Sit', ['quads'], ['glutes'], [30, 60],
+    'Back flat against a wall, knees bent about 90°, and hold.',
+    ['Knees over the ankles', 'Thighs parallel to the floor', 'Hands off the thighs']),
+  h('dead-hang', 'Dead Hang', ['forearms'], ['lats', 'shoulders'], [20, 60],
+    'Hang from a pull-up bar with straight arms.',
+    ['Full grip, thumbs around the bar', 'Shoulders slightly engaged, not shrugged to the ears', 'Step down, don\'t drop']),
+  h('hollow-hold', 'Hollow Body Hold', ['abs'], ['obliques'], [20, 40],
+    'On your back, lift shoulders and legs off the floor and hold a shallow banana shape.',
+    ['Lower back pressed into the floor', 'Arms overhead is harder, by the sides easier', 'Bend the knees if the back lifts']),
+  h('l-sit', 'L-Sit', ['abs'], ['triceps', 'quads', 'shoulders'], [10, 30],
+    'Support yourself on parallel bars or the floor with straight arms and hold the legs straight out in front.',
+    ['Push the shoulders down, away from the ears', 'Lock the knees, point the toes', 'Easier: tuck the knees']),
   // Cardio
   c('treadmill', 'Treadmill', 'run', ['quads', 'hamstrings', 'calves', 'glutes'],
     'Running or walking. Log distance and time; speed and pace are calculated.',

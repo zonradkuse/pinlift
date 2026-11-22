@@ -12,7 +12,7 @@ import { MuscleOverview } from '../components/MuscleMap.tsx';
 import { badgeById } from '../lib/badges.ts';
 import { backupReminder } from '../lib/backup.ts';
 import { formatDuration } from '../lib/cardio.ts';
-import { errorText, fmtCardio, fmtDate, fmtDistance, fmtKg, fmtPr, fmtSets, fmtTime } from '../lib/format.ts';
+import { errorText, fmtAmount, fmtCardio, fmtDate, fmtDistance, fmtKg, fmtPr, fmtSets, fmtTime, setFormat } from '../lib/format.ts';
 import { postToStrava } from '../lib/strava-flow.ts';
 import { EditExercise, EditTimes } from './SummaryEdit.tsx';
 import type { Session } from '../lib/types.ts';
@@ -21,7 +21,7 @@ function shareText(s: Session, workoutName: string | undefined, sum: SessionSumm
   const fun = compareWeight(sum.volume);
   return [
     `${workoutName ?? 'Workout'} · ${fmtDate(s.startedAt)}`,
-    sum.volume ? `Lifted ${fmtKg(sum.volume)} in ${sum.sets} sets${fun ? ` (${fun})` : ''}` : sum.sets ? `${sum.reps} reps in ${sum.sets} sets` : '',
+    sum.volume ? `Lifted ${fmtKg(sum.volume)} in ${sum.sets} sets${fun ? ` (${fun})` : ''}` : sum.sets ? `${fmtAmount(sum)} in ${sum.sets} sets` : '',
     sum.distanceM ? `Cardio: ${fmtDistance(sum.distanceM)}` : '',
     prCount ? `${prCount} new personal record${prCount > 1 ? 's' : ''}!` : '',
   ].filter(Boolean).join('\n');
@@ -50,7 +50,7 @@ export function Summary({ id }: { id: string }) {
   const myBadges = badges.filter((b) => b.sessionId === id);
   const workout = workoutOf(data, s);
   const fun = compareWeight(sum.volume);
-  const repsOnly = sum.sets > 0 && !sum.volume; // bodyweight exercises (or assisted machines) only
+  const liftless = sum.sets > 0 && !sum.volume; // only bodyweight exercises, holds or assisted machines
   const reminder = backupReminder(finishedSessions(data).length, local.lastBackupAt);
 
   const strava = async () => {
@@ -72,8 +72,8 @@ export function Summary({ id }: { id: string }) {
       {editing && <EditTimes s={s} />}
       <section class="hero">
         <div class="label-l muted">{workout?.name ?? 'Workout'} · {fmtTime(s.startedAt)}</div>
-        <div style={{ fontSize: '3.5rem', lineHeight: '4rem', fontWeight: 500 }} data-testid="total-volume">{repsOnly ? `${sum.reps} reps` : fmtKg(sum.volume)}</div>
-        <div class="body-m muted">{repsOnly ? `in ${sum.sets} sets` : sum.sets ? `lifted in total${fun ? ` — ${fun}!` : ''}` : 'cardio session'}</div>
+        <div style={{ fontSize: '3.5rem', lineHeight: '4rem', fontWeight: 500 }} data-testid="total-volume">{liftless ? fmtAmount(sum) : fmtKg(sum.volume)}</div>
+        <div class="body-m muted">{liftless ? `in ${sum.sets} sets` : sum.sets ? `lifted in total${fun ? ` — ${fun}!` : ''}` : 'cardio session'}</div>
       </section>
       <div class="grid-3" style={{ margin: '16px 0' }}>
         <Tile value={formatDuration(sum.durationSec)} label="Duration" />
@@ -102,13 +102,13 @@ export function Summary({ id }: { id: string }) {
       <h2 class="title-m section-title">Exercises</h2>
       <ul class="list">{[...new Set(s.entries.map((e) => e.deviceId))].map((devId) => {
         const d = getDevice(data, devId);
-        if (editing) return <EditExercise s={s} deviceId={devId} name={deviceName(data, devId)} bw={d?.bodyweight} />;
+        if (editing) return <EditExercise s={s} deviceId={devId} name={deviceName(data, devId)} fmt={setFormat(d)} />;
         const entries = s.entries.filter((e) => e.deviceId === devId);
         const sets = entries.flatMap((e) => e.sets).filter(isWork);
         const vol = d?.assisted ? 0 : sets.reduce((n, x) => n + x.weight * x.reps, 0);
         return (
           <ListItem href={href(to.device(devId))} title={deviceName(data, devId)} trailing={sets.length > 0 && <span class="trailing num">{fmtKg(vol)}</span>}
-            supporting={<span class="num">{sets.length ? fmtSets(sets, { compact: true, bw: d?.bodyweight }) : entries.map((e) => e.cardio && fmtCardio(e.cardio, d?.cardio)).join(' · ')}</span>} />
+            supporting={<span class="num">{sets.length ? fmtSets(sets, { compact: true, ...setFormat(d) }) : entries.map((e) => e.cardio && fmtCardio(e.cardio, d?.cardio)).join(' · ')}</span>} />
         );
       })}</ul>
 

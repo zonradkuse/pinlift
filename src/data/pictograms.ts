@@ -108,6 +108,13 @@ export const PICTOGRAMS: Record<string, PictogramSpec> = {
   'hanging-leg-raise': { pose: { hip: [46, 58], torso: -95, arm: [-75, -85], leg: [0, 0] }, parts: [['line', 30, 4, 70, 4, 3.5]],
     arrows: [[66, 88, 88, 68, 8]], floor: false },
   crunch: { pose: { hip: [52, 88], torso: -150, arm: [30, -150], leg: [-60, 70] }, parts: [], arrows: [[12, 56, 36, 54, -6]] },
+  // Holds (no movement, so no arrow)
+  plank: { pose: { hip: [46, 83], torso: -14, arm: [90, 0], leg: [166, 166] }, parts: [] },
+  'side-plank': { pose: { hip: [46, 83], torso: -14, arm: [-90, -90], arm2: [90, 0], leg: [166, 166] }, parts: [] },
+  'wall-sit': { pose: { hip: [34, 75], torso: -90, arm: [10, 0], leg: [0, 90] }, parts: [['line', 26, 18, 26, 94, 4]] },
+  'dead-hang': { pose: { view: 'front', hip: [50, 58], arm: [-80, -80], leg: [92, 92], thigh: 17 }, parts: [['line', 20, 4, 80, 4, 3.5]], floor: false },
+  'hollow-hold': { pose: { hip: [52, 86], torso: -160, arm: [-8, -8], leg: [-15, -15] }, parts: [] },
+  'l-sit': { pose: { hip: [44, 76], torso: -90, arm: [92, 88], leg: [-3, 0] }, parts: [['poly', 34, 94, 38, 82, 50, 82, 54, 94]] },
   // Cardio
   treadmill: { pose: { hip: [46, 52], torso: -80, arm: [120, 60], arm2: [60, -30], leg: [50, 110], leg2: [120, 160] },
     parts: [['line', 8, 90, 80, 90, 4], ['line', 80, 90, 88, 40, 3], ['line', 82, 36, 96, 40, 4]], arrows: [[62, 98, 26, 98]], floor: false },

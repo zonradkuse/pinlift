@@ -6,7 +6,7 @@ let notify: () => void = () => {};
 const pending = () => (registration?.waiting && navigator.serviceWorker.controller ? registration.waiting : undefined);
 
 export function registerServiceWorker(onUpdateReady: () => void) {
-  if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return;
+  if (!('serviceWorker' in navigator) || !import.meta.env.PROD || import.meta.env.MODE === 'embedded') return; // framed hosts allow no service worker
   notify = () => { if (pending()) onUpdateReady(); };
   // Every controlled tab reloads when a new worker takes over (also tabs where the user didn't tap Reload),
   // so no tab keeps running old code against new caches. The first claim after the initial install doesn't reload.

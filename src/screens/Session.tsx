@@ -1,20 +1,21 @@
 import { Empty, Icon, Tile, TopBar, confirmDialog, useTick } from '../components/ui.tsx';
-import { PlanRow } from '../components/plan.tsx';
+import { PlanRow, useFinishWorkout } from '../components/plan.tsx';
 import { ForgottenCard } from '../components/ForgottenCard.tsx';
 import { RestBar } from '../components/RestBar.tsx';
 import { useStore } from '../lib/store.ts';
 import { activeSession, deviceLookup, devicesByIds, devicesWithQr, workoutOf } from '../lib/selectors.ts';
-import { deleteSession, finishSession, startWorkout } from '../lib/actions.ts';
+import { deleteSession, startWorkout } from '../lib/actions.ts';
 import { isForgotten } from '../lib/ui-state.ts';
 import { sessionSummary } from '../lib/stats.ts';
 import { formatDuration } from '../lib/cardio.ts';
-import { fmtKg, fmtNum } from '../lib/format.ts';
+import { fmtNum } from '../lib/format.ts';
 import { navigate } from '../lib/router.ts';
 import { href, to } from '../lib/routes.ts';
 import type { Device } from '../lib/types.ts';
 
 export function SessionScreen() {
   const { data } = useStore();
+  const finish = useFinishWorkout();
   useTick(1000);
   const s = activeSession(data);
   if (!s) {
@@ -32,16 +33,6 @@ export function SessionScreen() {
   const extra = devicesByIds(data, [...new Set(s.entries.map((e) => e.deviceId))].filter((id) => !planIds.has(id)));
   const sum = sessionSummary(s, deviceLookup(data));
 
-  const finish = async () => {
-    if (!s.entries.length) {
-      if (await confirmDialog({ title: 'Discard empty workout?', body: 'Nothing has been logged yet.', confirm: 'Discard' })) { finishSession(s.id); navigate(to.home()); }
-      return;
-    }
-    if (await confirmDialog({ title: 'Finish workout?', body: `${sum.sets} sets, ${sum.volume ? `${fmtKg(sum.volume)} lifted` : `${sum.reps} reps`}.`, confirm: 'Finish' })) {
-      finishSession(s.id);
-      navigate(to.summary(s.id, true), true);
-    }
-  };
   const discard = async () => {
     if (await confirmDialog({ title: 'Discard workout?', body: 'All sets of this workout will be deleted.', confirm: 'Discard', danger: true })) {
       deleteSession(s.id); navigate(to.home());

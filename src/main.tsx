@@ -10,7 +10,8 @@ import { listenForInstallPrompt, registerServiceWorker } from './lib/pwa.ts';
 import { handleStravaRedirect } from './lib/strava-flow.ts';
 
 // Never run inside someone else's frame (clickjacking); static hosts like GitHub Pages can't send frame-ancestors.
-if (window.top !== window.self) {
+// The `embedded` build (vite build --mode embedded) is meant for a host's frame, e.g. a claude.ai preview.
+if (import.meta.env.MODE !== 'embedded' && window.top !== window.self) {
   document.body.textContent = 'Open Pinlift directly.';
   throw new Error('Framed');
 }

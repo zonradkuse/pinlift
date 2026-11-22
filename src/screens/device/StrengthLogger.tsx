@@ -2,12 +2,14 @@ import { useState } from 'preact/hooks';
 import { Icon, ListItem, Stepper, useTick } from '../../components/ui.tsx';
 import { primeAlarm } from '../../components/RestBar.tsx';
 import { logSet, removeSet, updateSet } from '../../lib/actions.ts';
-import { deviceName, deviceOptions, recentDevices, remainingPlan } from '../../lib/selectors.ts';
+import { deviceName, deviceOptions, offersFinish, recentDevices, remainingPlan } from '../../lib/selectors.ts';
+import { FinishButton } from '../../components/plan.tsx';
 import { toast } from '../../lib/ui-state.ts';
 import { useDerived } from '../../lib/derived.ts';
-import { dropSetWeight, progressVsLast, suggest } from '../../lib/progression.ts';
+import { dropSetWeight, HOLD_STEP_SEC, progressVsLast, suggest } from '../../lib/progression.ts';
 import { isWork, previousSession } from '../../lib/stats.ts';
-import { fmtLoad, fmtProgress, fmtSet, fmtSets, fmtShortDate } from '../../lib/format.ts';
+import { fmtKg, fmtProgress, fmtSet, fmtSets, fmtShortDate } from '../../lib/format.ts';
+import { HoldTimer, GET_READY_SEC } from './HoldTimer.tsx';
 import { href, to } from '../../lib/routes.ts';
 import { SetupNotes } from './SetupNotes.tsx';
 import type { AppData, Device, Session, StrengthSet } from '../../lib/types.ts';
@@ -24,7 +26,9 @@ function Suggestion({ data, dev, active, onUse }: { data: AppData; dev: Device; 
   if (!sugg) {
     return (
       <div class="card tertiary body-m">
-        {opts.bodyweight ? `First time on this exercise. Aim for about ${Math.round((opts.repMin + opts.repMax) / 2)} clean reps; once ${opts.repMax} feel easy, `
+        {opts.timed ? `First time on this exercise. Pick a hold you can keep with good form (about ${opts.repMin} s). Tap Start and get into position `
+          + `during the ${GET_READY_SEC}-second countdown; the set is logged when the time is up.`
+          : opts.bodyweight ? `First time on this exercise. Aim for about ${Math.round((opts.repMin + opts.repMax) / 2)} clean reps; once ${opts.repMax} feel easy, `
           + 'the app suggests adding weight (vest, belt).'
           : <>First time on this device. Pick {opts.assisted ? 'an assistance' : 'a weight'} you can manage for about {Math.round((opts.repMin + opts.repMax) / 2)} controlled reps
           — the app will suggest the next one from here.</>}
@@ -37,12 +41,13 @@ function Suggestion({ data, dev, active, onUse }: { data: AppData; dev: Device; 
         <Icon name={sugg.kind === 'increase' ? 'trending_up' : sugg.kind === 'decrease' ? 'arrow_downward' : 'fitness_center'} />
         <div class="spacer">
           <div class="label-m">Suggestion</div>
-          <div class="title-l" data-testid="suggestion">{fmtLoad(sugg.weight, opts.bodyweight)}{opts.assisted ? ' assist' : ''} × {sugg.reps}{sugg.kind === 'same' ? '+' : ''}</div>
+          <div class="title-l" data-testid="suggestion">{opts.assisted ? `${fmtKg(sugg.weight)} assist × ${sugg.reps}`
+            : fmtSet({ weight: sugg.weight, reps: sugg.reps, at: 0 }, { bw: opts.bodyweight, timed: opts.timed })}{sugg.kind === 'same' ? '+' : ''}</div>
           <div class="body-m">{sugg.reason}</div>
         </div>
         <button class="btn tonal interactive" onClick={() => onUse(sugg.weight, sugg.reps)}>Use</button>
       </div>
-      {prev && <div class="body-s mt-8" data-testid="last-time">Last time ({fmtShortDate(prev.session.startedAt)}): {fmtSets(prev.sets, { bw: opts.bodyweight })}</div>}
+      {prev && <div class="body-s mt-8" data-testid="last-time">Last time ({fmtShortDate(prev.session.startedAt)}): {fmtSets(prev.sets, { bw: opts.bodyweight, timed: opts.timed })}</div>}
     </div>
   );
 }
@@ -65,6 +70,7 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
   const progress = progressVsLast(rows, prev?.sets ?? [], opts.assisted);
   const next = remainingPlan(data, active, dev.id)[0];
   const recent = recentDevices(active, dev.id);
+  const canFinish = offersFinish(data, active, dev.id);
   const label = (r: Row) => (r.kind === 'warmup' ? 'W' : String(workRows.findIndex((w) => same(w, r)) + 1));
 
   const startEdit = (r: Row) => { setEditing(r); setWeight(r.weight); setReps(r.reps); setKind(r.kind); };
@@ -87,11 +93,11 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
       {!editing && <Suggestion data={data} dev={dev} active={active} onUse={(w, r) => { setWeight(w); setReps(r); }} />}
       {editing && <div class="title-m">Edit set {label(editing)}</div>}
       <Stepper label={opts.assisted ? 'Assistance' : opts.bodyweight ? 'Added weight' : 'Weight'} unit="kg" value={weight} step={opts.step} onChange={setWeight} />
-      <Stepper label="Reps" value={reps} step={1} decimals={false} onChange={(v) => setReps(Math.round(v))} />
-      <div class="row" role="group" aria-label="Set type">
+      <Stepper label={opts.timed ? 'Seconds' : 'Reps'} value={reps} step={opts.timed ? HOLD_STEP_SEC : 1} decimals={false} onChange={(v) => setReps(Math.round(v))} />
+      {!opts.timed && <div class="row" role="group" aria-label="Set type">
         <button class="chip interactive" aria-pressed={kind === 'warmup'} onClick={() => chooseKind('warmup')}>{kind === 'warmup' && <Icon name="check" />}Warm-up</button>
         <button class="chip interactive" aria-pressed={kind === 'drop'} onClick={() => chooseKind('drop')}>{kind === 'drop' && <Icon name="check" />}Drop set</button>
-      </div>
+      </div>}
       {editing ? (
         <div class="row wrap">
           <button class="btn large interactive spacer" disabled={reps < 1}
@@ -100,6 +106,8 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
           <button class="btn outlined danger interactive" onClick={() => remove(editing)}><Icon name="delete" />Delete</button>
           <button class="btn text interactive" onClick={stopEdit}>Cancel</button>
         </div>
+      ) : opts.timed ? (
+        <HoldTimer target={reps} onManual={log} onLog={(sec) => logSet(dev.id, weight, sec)} />
       ) : (
         <button class="btn large block interactive" disabled={reps < 1} onClick={log}>
           <Icon name="add" />{kind === 'warmup' ? 'Log warm-up set' : kind === 'drop' ? 'Log drop set' : `Log set ${workRows.length + 1}`}
@@ -111,23 +119,24 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
           <div class="row wrap" style={{ margin: '8px 0' }}>
             <h2 class="title-m spacer">Today</h2>
             {pr && <span class="chip static gold"><Icon name="emoji_events" size={16} />New PR!</span>}
-            {!pr && progress && <span class="chip static primary" data-testid="progress"><Icon name="trending_up" size={16} />{fmtProgress(progress)}</span>}
+            {!pr && progress && <span class="chip static primary" data-testid="progress"><Icon name="trending_up" size={16} />{fmtProgress(progress, opts.timed)}</span>}
           </div>
           <ul class="list">
             {rows.map((r) => (
-              <ListItem onClick={() => startEdit(r)} selected={!!editing && same(editing, r)} label={`Set ${label(r)}: ${fmtSet(r, { bw: opts.bodyweight })}. Tap to edit`}
+              <ListItem onClick={() => startEdit(r)} selected={!!editing && same(editing, r)} label={`Set ${label(r)}: ${fmtSet(r, { bw: opts.bodyweight, timed: opts.timed })}. Tap to edit`}
                 leading={<span class={'avatar' + (r.kind === 'warmup' ? ' muted' : '')}>{label(r)}</span>}
-                title={<span class={'num' + (r.kind === 'warmup' ? ' muted-text' : '')}>{fmtSet(r, { kind: true, bw: opts.bodyweight })}</span>}
+                title={<span class={'num' + (r.kind === 'warmup' ? ' muted-text' : '')}>{fmtSet(r, { kind: true, bw: opts.bodyweight, timed: opts.timed })}</span>}
                 trailing={<Icon name="edit" size={20} />} />
             ))}
           </ul>
         </div>
       )}
 
-      {rows.length > 0 && (next || recent.length > 0) && (
+      {rows.length > 0 && (next || recent.length > 0 || canFinish) && (
         <div class="row wrap">
           {recent.map((id) => <a class="chip interactive" href={href(to.device(id))}>↔ {deviceName(data, id)}</a>)}
           {next && <a class="btn tonal interactive" style={{ marginLeft: 'auto' }} href={href(to.device(next.id))}>Next: {next.name}<Icon name="chevron_right" /></a>}
+          {canFinish && <span style={{ marginLeft: 'auto' }}><FinishButton /></span>}
         </div>
       )}
     </div>

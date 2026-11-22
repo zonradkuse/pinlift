@@ -20,7 +20,9 @@ export interface Device {
   assisted?: boolean;
   /** Bodyweight exercise: the logged weight is added weight (0 = bodyweight only). */
   bodyweight?: boolean;
-  /** Default rep range for the suggestions, e.g. higher for bodyweight exercises. */
+  /** Hold exercise (plank, wall sit): the `reps` of its sets are seconds held. */
+  timed?: boolean;
+  /** Default rep range for the suggestions, e.g. higher for bodyweight exercises (seconds for timed ones). */
   reps?: [number, number];
 }
 

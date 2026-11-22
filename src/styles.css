@@ -248,6 +248,10 @@ dialog.dlg h2 { font-size: 1.5rem; line-height: 2rem; margin-bottom: 16px; }
 dialog.dlg .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 
 /* Stepper */
+.hold-timer { align-items: center; text-align: center; }
+.hold-time { font-size: 4rem; line-height: 4.5rem; font-weight: 500; }
+.hold-timer progress { width: 100%; accent-color: var(--md-primary); }
+.hold-timer .row { width: 100%; }
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper input {
   flex: 1; min-width: 0; height: 64px; text-align: center; font-size: 2rem; font-weight: 400; font-variant-numeric: tabular-nums;
@@ -301,6 +305,7 @@ ul.cues li { margin: 4px 0; }
 .restbar.over { background: var(--gold-container); color: var(--on-gold-container); }
 .restbar-progress { position: absolute; left: 0; top: 0; height: 3px; background: var(--md-primary); transition: width 500ms linear; }
 body.resting .fab.no-nav { bottom: calc(96px + var(--safe-b)); }
+body.holding .fab, body.holding .restbar { display: none; }
 body.resting .screen.no-nav { padding-bottom: calc(200px + var(--safe-b)); }
 body.resting .snackbar { bottom: calc(96px + var(--safe-b)); }
 

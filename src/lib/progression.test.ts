@@ -73,3 +73,14 @@ test('bodyweight: the weight is added weight, never below zero; reasons say body
   assert.deepEqual([suggest(sets([0, 15], [0, 16]), bw)!.weight, suggest(sets([0, 15], [0, 16]), bw)!.reps], [2.5, 8]);
   assert.match(suggest(sets([2.5, 15], [2.5, 15]), bw)!.reason, /BW \+ 2.5 kg/);
 });
+
+test('timed: double progression in seconds, +5 s at a time, then added weight', () => {
+  const t = { step: 2.5, repMin: 30, repMax: 60, bodyweight: true, timed: true };
+  const same = suggest(sets([0, 30], [0, 30]), t)!;
+  assert.deepEqual([same.kind, same.weight, same.reps], ['same', 0, 35]);
+  assert.match(same.reason, /Hold longer until every set reaches 60 s/);
+  const up = suggest(sets([0, 60], [0, 62]), t)!;
+  assert.deepEqual([up.weight, up.reps], [2.5, 30]);
+  assert.match(up.reason, /reached 60\+ s/);
+  assert.match(suggest(sets([0, 20], [0, 15]), t)!.reason, /Below 30 s/);
+});

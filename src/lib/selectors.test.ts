@@ -32,9 +32,9 @@ test('recentDevices: other devices with a set within the superset window', () =>
 test('deviceOptions: device defaults overridden by user settings', () => {
   const d = emptyData();
   const dev = catalogById.get('chest-press')!;
-  assert.deepEqual(deviceOptions(d, dev), { step: 5, repMin: 8, repMax: 12, rest: 90, assisted: false, bodyweight: false });
+  assert.deepEqual(deviceOptions(d, dev), { step: 5, repMin: 8, repMax: 12, rest: 90, assisted: false, bodyweight: false, timed: false });
   d.deviceSettings['chest-press'] = { step: 2.5, rest: 120, updatedAt: 1 };
-  assert.deepEqual(deviceOptions(d, dev), { step: 2.5, repMin: 8, repMax: 12, rest: 120, assisted: false, bodyweight: false });
+  assert.deepEqual(deviceOptions(d, dev), { step: 2.5, repMin: 8, repMax: 12, rest: 120, assisted: false, bodyweight: false, timed: false });
 });
 
 test('devicesForQr skips unknown devices; deviceName falls back to the id', () => {
@@ -66,4 +66,16 @@ test('filter groups: bodyweight exercises have their own chip; every catalog exe
   assert.deepEqual(CATALOG.filter((d) => inGroups(d, ['bodyweight'])).map((d) => d.id), CATALOG.filter((d) => d.bodyweight).map((d) => d.id));
   assert.ok(CATALOG.filter((d) => d.bodyweight).length >= 10);
   assert.deepEqual(CATALOG.filter((d) => !PICTOGRAMS[d.id]).map((d) => d.id), []);
+});
+
+test('offersFinish: the device is logged and, in a planned workout, nothing else of the plan is left', async () => {
+  const { offersFinish } = await import('./selectors.ts');
+  const d = data(); // plan: chest-press, lat-pulldown, seated-row; chest-press logged
+  assert.equal(offersFinish(d, activeSession(d), 'chest-press'), false);
+  d.sessions.s.entries.push(lift('lat-pulldown', [40, 10]), lift('seated-row', [40, 10]));
+  assert.equal(offersFinish(d, activeSession(d), 'seated-row'), true);
+  assert.equal(offersFinish(d, activeSession(d), 'leg-press'), false); // not logged here
+  delete d.sessions.s.workoutId; // free workout: any logged exercise
+  assert.equal(offersFinish(d, activeSession(d), 'chest-press'), true);
+  assert.equal(offersFinish(d, activeSession(d), 'leg-press'), false);
 });

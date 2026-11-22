@@ -131,3 +131,15 @@ test('computePRs for bodyweight exercises: more added weight, else more reps in 
   ], () => pu);
   assert.deepEqual(prs.map((p) => [p.sessionId, p.kind, p.value, p.previous]), [['b', 'reps', 12, 10], ['d', 'added', 5, 0]]);
 });
+
+test('timed exercises: holds are records and progress; seconds never count as reps or lifted weight', async () => {
+  const { progressSeries, bestSetsByDevice } = await import('./stats.ts');
+  const plank = device('plank', { bodyweight: true, timed: true });
+  const s = [mkSession('a', 1, [lift('plank', [0, 45], [0, 40])]), mkSession('b', 2, [lift('plank', [10, 50])])];
+  assert.deepEqual(computePRs(s, () => plank).map((p) => [p.kind, p.value, p.previous]), [['added', 10, 0]]);
+  assert.deepEqual(computePRs([s[0], mkSession('c', 3, [lift('plank', [0, 60])])], () => plank).map((p) => [p.kind, p.value]), [['hold', 60]]);
+  const sum = sessionSummary(s[1], () => plank);
+  assert.deepEqual([sum.volume, sum.reps, sum.sets, sum.holdSec], [0, 0, 1, 50]);
+  assert.equal(progressSeries(s, plank).metric, 'hold');
+  assert.equal(bestSetsByDevice(s, () => plank).has('plank'), false);
+});

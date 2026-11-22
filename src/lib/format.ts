@@ -1,5 +1,5 @@
 import { CARDIO, formatDuration, pace, speedKmh } from './cardio.ts';
-import type { CardioLog, CardioType, StrengthSet } from './types.ts';
+import type { CardioLog, CardioType, Device, StrengthSet } from './types.ts';
 import type { PR, SessionSummary } from './stats.ts';
 
 const nf = (digits: number) => new Intl.NumberFormat('en', { maximumFractionDigits: digits });
@@ -20,8 +20,9 @@ export function fmtCardio(c: CardioLog, type?: CardioType): string {
     : `${base} (${fmtNum(speedKmh(c.distanceM, c.durationSec))} km/h)`;
 }
 
-/** What a workout amounted to: weight lifted, else reps (bodyweight, assisted), else cardio distance or time. */
-export const fmtAmount = (sum: SessionSummary) => sum.volume ? fmtKg(sum.volume) : sum.sets ? `${sum.reps} reps`
+/** What a workout amounted to: weight lifted, else reps (bodyweight, assisted) or time held, else cardio distance or time. */
+export const fmtAmount = (sum: SessionSummary) => sum.volume ? fmtKg(sum.volume) : sum.reps ? `${sum.reps} reps`
+  : sum.holdSec ? `${fmtHold(sum.holdSec)} held`
   : sum.distanceM ? fmtDistance(sum.distanceM) : `${formatDuration(sum.cardioSec)} cardio`;
 
 export const SET_KIND_LABEL = { warmup: 'warm-up', drop: 'drop' } as const;
@@ -30,11 +31,20 @@ export const SET_KIND_LABEL = { warmup: 'warm-up', drop: 'drop' } as const;
 export const fmtLoad = (kg: number, bw?: boolean, compact?: boolean) =>
   !bw ? (compact ? fmtNum(kg) : fmtKg(kg)) : !kg ? 'BW' : compact ? `BW+${fmtNum(kg)}` : `BW + ${fmtKg(kg)}`;
 
-export interface SetFormat { compact?: boolean; kind?: boolean; bw?: boolean }
+/** Seconds held: "45 s", "1:30 min"; compact "45s", "1:30". */
+export const fmtHold = (sec: number, compact?: boolean) =>
+  sec < 60 ? `${sec}${compact ? 's' : ' s'}` : `${formatDuration(sec)}${compact ? '' : ' min'}`;
 
-/** "42.5 kg × 8", compact "42.5×8"; `kind` appends "· warm-up" / "· drop". */
+/** `timed`: the reps are seconds held (plank, wall sit). */
+export interface SetFormat { compact?: boolean; kind?: boolean; bw?: boolean; timed?: boolean }
+
+/** How a device's sets are written (bodyweight: added weight; timed: seconds held). */
+export const setFormat = (dev?: Device): SetFormat => ({ bw: dev?.bodyweight, timed: dev?.timed });
+
+/** "42.5 kg × 8", compact "42.5×8"; held for time "45 s" or "BW + 10 kg × 1:30 min"; `kind` appends "· warm-up" / "· drop". */
 export function fmtSet(s: StrengthSet, opts: SetFormat = {}): string {
-  const base = `${fmtLoad(s.weight, opts.bw, opts.compact)}${opts.compact ? '×' : ' × '}${s.reps}`;
+  const amount = opts.timed ? fmtHold(s.reps, opts.compact) : String(s.reps);
+  const base = opts.timed && opts.bw && !s.weight ? amount : `${fmtLoad(s.weight, opts.bw, opts.compact)}${opts.compact ? '×' : ' × '}${amount}`;
   return opts.kind && s.kind ? `${base} · ${SET_KIND_LABEL[s.kind]}` : base;
 }
 
@@ -46,11 +56,12 @@ export const fmtPr = (p: PR) => p.kind === 'weight' ? `${fmtKg(p.value)} (was ${
   : p.kind === 'floors' ? `${p.value} floors (was ${p.previous})`
   : p.kind === 'added' ? `${fmtLoad(p.value, true)} (was ${fmtLoad(p.previous, true)})`
   : p.kind === 'reps' ? `${p.value} reps (was ${p.previous})`
+  : p.kind === 'hold' ? `${fmtHold(p.value)} (was ${fmtHold(p.previous)})`
   : `${fmtDistance(p.value)} (was ${fmtDistance(p.previous)})`;
 
-export const fmtProgress = (p: { weight: number } | { reps: number }) => 'weight' in p
+export const fmtProgress = (p: { weight: number } | { reps: number }, timed?: boolean) => 'weight' in p
   ? `${p.weight > 0 ? '+' : '−'}${fmtNum(Math.abs(p.weight))} kg vs last time`
-  : `+${p.reps} rep${p.reps > 1 ? 's' : ''} vs last time`;
+  : timed ? `+${p.reps} s vs last time` : `+${p.reps} rep${p.reps > 1 ? 's' : ''} vs last time`;
 
 /** Accepts "42,5" as well as "42.5". */
 export function parseDecimal(input: string): number | undefined {

@@ -15,8 +15,10 @@ export function toCsv(d: AppData, getDevice: (id: string) => Device | undefined)
     const base = [`${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`, `${pad(t.getHours())}:${pad(t.getMinutes())}`,
       (s.workoutId && d.workouts[s.workoutId]?.name) || ''];
     for (const e of s.entries) {
-      const name = getDevice(e.deviceId)?.name ?? e.deviceId;
-      e.sets.forEach((x, i) => rows.push([...base, name, String(i + 1), x.kind ?? 'work', String(x.weight), String(x.reps), '', '', '']));
+      const dev = getDevice(e.deviceId), name = dev?.name ?? e.deviceId;
+      // Holds (timed devices) store seconds in reps.
+      e.sets.forEach((x, i) => rows.push([...base, name, String(i + 1), x.kind ?? 'work', String(x.weight),
+        dev?.timed ? '' : String(x.reps), dev?.timed ? String(x.reps) : '', '', '']));
       if (e.cardio) rows.push([...base, name, '', 'cardio', '', '', String(e.cardio.durationSec), String(e.cardio.distanceM), e.cardio.floors === undefined ? '' : String(e.cardio.floors)]);
     }
   }

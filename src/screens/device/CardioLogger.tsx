@@ -6,6 +6,8 @@ import { bestCardio, cardioLogs } from '../../lib/stats.ts';
 import { CARDIO, cardioProblem, formatDuration, pace, speedKmh } from '../../lib/cardio.ts';
 import { fmtCardio, fmtNum, parseDecimal } from '../../lib/format.ts';
 import { SetupNotes } from './SetupNotes.tsx';
+import { FinishButton } from '../../components/plan.tsx';
+import { offersFinish } from '../../lib/selectors.ts';
 import type { AppData, Device, Session } from '../../lib/types.ts';
 
 const field = (set: (v: string) => void) => (e: Event) => set((e.target as HTMLInputElement).value);
@@ -66,6 +68,7 @@ export function CardioLogger({ data, dev, active }: { data: AppData; dev: Device
           ))}
         </ul>
       )}
+      {offersFinish(data, active, dev.id) && <FinishButton cls="btn tonal large block interactive" />}
     </div>
   );
 }

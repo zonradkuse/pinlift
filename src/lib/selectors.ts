@@ -22,7 +22,7 @@ export const deviceOptions = (d: AppData, dev: Device) => {
   const s = d.deviceSettings[dev.id];
   const [repMin, repMax] = dev.reps ?? DEFAULT_REP_RANGE;
   return { step: s?.step ?? dev.step, repMin: s?.repMin ?? repMin, repMax: s?.repMax ?? repMax,
-    rest: s?.rest ?? DEFAULT_REST, assisted: !!dev.assisted, bodyweight: !!dev.bodyweight };
+    rest: s?.rest ?? DEFAULT_REST, assisted: !!dev.assisted, bodyweight: !!dev.bodyweight, timed: !!dev.timed };
 };
 
 export const activeSession = (d: AppData): Session | undefined =>
@@ -41,6 +41,11 @@ export const liveWorkouts = (d: AppData) => Object.values(d.workouts).filter((w)
 /** Plan devices of the session's workout not done yet (in plan order). */
 export const remainingPlan = (d: AppData, s: Session | undefined, except?: string) =>
   !s ? [] : devicesByIds(d, workoutOf(d, s)?.deviceIds ?? []).filter((x) => x.id !== except && !s.entries.some((e) => e.deviceId === x.id));
+
+/** Offer "Finish workout" on a device screen: the device is logged in this session and, in a planned workout, nothing
+ *  else of the plan is left (a free workout can end after any exercise). */
+export const offersFinish = (d: AppData, s: Session | undefined, deviceId: string) =>
+  !!s?.entries.some((e) => e.deviceId === deviceId) && !remainingPlan(d, s, deviceId).length;
 
 /** Other devices with a set in the last minutes (superset partners). */
 export const recentDevices = (s: Session | undefined, exceptId: string, now = Date.now()) =>

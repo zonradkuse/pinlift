@@ -5,7 +5,7 @@ import { useStore } from '../lib/store.ts';
 import { activeSession, allDevices, devicesForQr, devicesWithQr, lastBest, remainingPlan } from '../lib/selectors.ts';
 import { linkQr } from '../lib/actions.ts';
 import { toast } from '../lib/ui-state.ts';
-import { fmtSet } from '../lib/format.ts';
+import { fmtSet, setFormat } from '../lib/format.ts';
 import { navigate } from '../lib/router.ts';
 import { href, to } from '../lib/routes.ts';
 import { FILTER_GROUPS, inGroups, muscleSummary } from '../data/catalog.ts';
@@ -40,7 +40,7 @@ export function Picker({ assign, addTo }: { assign?: string; addTo?: string }) {
     return (
       <ListItem onClick={() => pick(d)} title={d.name} supporting={muscleSummary(d)}
         leading={<span class="pictogram-tile"><Pictogram device={d} size={40} /></span>}
-        trailing={<>{top && <span class="trailing num">{fmtSet(top, { bw: d.bodyweight })}</span>}{withQr.has(d.id) && <Icon name="qr_code" size={18} />}</>} />
+        trailing={<>{top && <span class="trailing num">{fmtSet(top, setFormat(d))}</span>}{withQr.has(d.id) && <Icon name="qr_code" size={18} />}</>} />
     );
   };
 

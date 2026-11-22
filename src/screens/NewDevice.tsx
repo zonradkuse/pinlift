@@ -19,11 +19,12 @@ export function NewDevice({ assign }: { assign?: string }) {
   const [step, setStep] = useState(DEFAULT_STEP);
   const [assisted, setAssisted] = useState(false);
   const [bodyweight, setBodyweight] = useState(false);
+  const [timed, setTimed] = useState(false);
   const save = () => {
     const dev: Device = {
       id: 'c-' + uid(), name: name.trim(), kind, primary: muscles, secondary: [], description: 'Custom device.', cues: [],
       step: parseDecimal(step) || parseDecimal(DEFAULT_STEP)!,
-      ...(kind === 'cardio' ? { cardio } : {}), ...(kind === 'strength' && assisted ? { assisted } : {}), ...(kind === 'strength' && bodyweight ? { bodyweight } : {}),
+      ...(kind === 'cardio' ? { cardio } : {}), ...(kind === 'strength' && assisted ? { assisted } : {}), ...(kind === 'strength' && bodyweight ? { bodyweight } : {}), ...(kind === 'strength' && timed ? { timed, reps: [30, 60] as [number, number] } : {}),
     };
     saveCustomDevice(dev);
     if (assign) linkQr(assign, dev.id);
@@ -46,9 +47,11 @@ export function NewDevice({ assign }: { assign?: string }) {
           <>
             <label class="field"><span>Weight step (kg)</span><input inputMode="decimal" value={step} onInput={(e) => setStep((e.target as HTMLInputElement).value)} /></label>
             <SwitchRow title="Assisted (counterweight)" supporting="Less weight is harder, e.g. assisted dips or pull-ups. Not counted as weight lifted."
-              checked={assisted} onChange={(v) => { setAssisted(v); if (v) setBodyweight(false); }} />
+              checked={assisted} onChange={(v) => { setAssisted(v); if (v) { setBodyweight(false); setTimed(false); } }} />
             <SwitchRow title="Bodyweight exercise" supporting="The weight you log is added weight (vest, belt); 0 means bodyweight only."
               checked={bodyweight} onChange={(v) => { setBodyweight(v); if (v) setAssisted(false); }} />
+            <SwitchRow title="Timed (hold)" supporting="Sets are seconds held, logged with a countdown, e.g. a plank."
+              checked={timed} onChange={(v) => { setTimed(v); if (v) setAssisted(false); }} />
             <div class="label-l muted">Trained muscles</div>
             <div class="chips wrap">
               {(Object.keys(MUSCLES) as Muscle[]).map((m) => (

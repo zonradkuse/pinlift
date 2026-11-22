@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { errorText, fmtAmount, fmtCardio, fmtPr, fmtSet, fmtSets, parseDecimal } from './format.ts';
+import { errorText, fmtAmount, fmtCardio, fmtPr, fmtProgress, fmtSet, fmtSets, parseDecimal } from './format.ts';
 import { set } from './fixtures.ts';
 
 test('sets in long and compact form', () => {
@@ -53,9 +53,20 @@ test('bodyweight sets and records: BW plus added weight', () => {
 });
 
 test('what a workout amounted to: weight lifted, else reps (bodyweight), else distance or cardio time', () => {
-  const sum = { volume: 0, sets: 0, reps: 0, distanceM: 0, cardioSec: 0, durationSec: 0 };
+  const sum = { volume: 0, sets: 0, reps: 0, holdSec: 0, distanceM: 0, cardioSec: 0, durationSec: 0 };
   assert.equal(fmtAmount({ ...sum, volume: 1200, sets: 3, reps: 30 }), '1,200 kg');
   assert.equal(fmtAmount({ ...sum, sets: 3, reps: 36 }), '36 reps');
   assert.equal(fmtAmount({ ...sum, distanceM: 2000, cardioSec: 480 }), '2.00 km');
   assert.equal(fmtAmount({ ...sum, cardioSec: 1200 }), '20:00 cardio');
+});
+
+test('timed exercises: sets are seconds held', () => {
+  const pr = { sessionId: 's', deviceId: 'd', at: 0 };
+  assert.equal(fmtSet(set(0, 45), { bw: true, timed: true }), '45 s');
+  assert.equal(fmtSet(set(10, 90), { bw: true, timed: true }), 'BW + 10 kg × 1:30 min');
+  assert.equal(fmtSets([set(0, 45), set(0, 40)], { compact: true, bw: true, timed: true }), '45s · 40s');
+  assert.equal(fmtPr({ ...pr, kind: 'hold', value: 75, previous: 60 }), '1:15 min (was 1:00 min)');
+  assert.equal(fmtProgress({ reps: 5 }, true), '+5 s vs last time');
+  const sum = { volume: 0, sets: 2, reps: 0, holdSec: 90, distanceM: 0, cardioSec: 0, durationSec: 0 };
+  assert.equal(fmtAmount(sum), '1:30 min held');
 });

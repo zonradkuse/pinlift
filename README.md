@@ -23,11 +23,12 @@ An offline-first PWA for tracking gym progress. It has no backend, and data stay
   - Plan rows show each target; after a set there's a "Next" shortcut and a shortcut back to devices used minutes ago (supersets).
   - A workout left open is offered to be finished at its real end, so forgetting Finish doesn't spoil your history.
   - Finished workouts can be edited.
-- **Device catalog**: about 50 prefilled devices (gym80-style selectorized and plate-loaded machines, free weights, bodyweight exercises, cardio).
+- **Device catalog**: about 55 prefilled devices (gym80-style selectorized and plate-loaded machines, free weights, bodyweight exercises, holds, cardio).
   - Each has its own pictogram (figure, machine and an arrow for the movement; see below), a muscle map (primary and secondary muscles), a short description, form cues and a link to technique videos.
   - Per device you can store setup notes (e.g. "Seat 5"), adjust the step and rep range, or hide it.
   - Assisted machines (dip/chin assist) count progress as less assistance and add no lifted weight.
   - Bodyweight exercises (push-up, pull-up, chin-up, dip, inverted row, squat, lunge, glute bridge, hanging leg raise, crunch, pike push-up) log *added* weight, starting at 0 and shown as "BW" or "BW + 5 kg". They have their own rep ranges and filter chip. Records are more added weight or more reps in one set, and progress is charted as most reps. They add no lifted weight; a workout with nothing lifted shows its reps instead.
+  - Holds (plank, side plank, wall sit, dead hang, hollow body hold, L-sit) are logged in seconds with a countdown: tap *Start*, 3 seconds to get into position, then the hold. At zero the phone vibrates (and beeps if the timer sound is on) and the set is logged without a tap; *Stop and log* records a shorter hold. Suggestions add 5 s until every set reaches the top of the hold range, then added weight. Records are longer holds or more added weight. While a hold runs, the screen stays on and the rest timer and scan button are hidden.
   - One QR code can open several exercises (Smith machine, cable tower); when linking a new code mid-workout, the next devices of your plan are offered first.
 - **Workouts**: Upper body, Lower body, Core, Push, Pull, Full body and Cardio are included. You can build your own from muscle groups, reorder devices, or train freely.
   - The editor and the plan preview show a muscle map and the number of exercises per muscle group, and list groups the workout doesn't train. The summary after a workout shows the same with working sets. Cardio works the muscles of its device (the rower: back, legs, glutes) and counts as an exercise in a plan, but not as sets.
@@ -119,6 +120,7 @@ Dependencies point downwards only: `src/lib` never imports UI code.
 
 ### Data
 
+- **Sets of holds** store the seconds in `reps` (the device says it is `timed`), so records, suggestions, editing and sync work unchanged. An app version from before holds would show those seconds as reps until it is updated.
 - **`AppData`** (synced): six collections of records: `sessions`, `workouts`, `customDevices`, `deviceSettings`, `qr`, `bodyWeights` (keyed by day).
   - Every record carries `updatedAt`. Deletions are kept as tombstones (`deleted: true`) so that they sync.
   - The built-in device catalog lives in code; device ids are only ever added, never changed.
@@ -161,8 +163,8 @@ Every machine has a pictogram drawn from data rather than an image file. `data/p
 
 ### Tests
 
-- **Unit tests:** about 95, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
-- **End-to-end tests:** 49 Playwright tests. They cover:
+- **Unit tests:** about 100, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
+- **End-to-end tests:** 51 Playwright tests (holds run on Playwright's fake clock). They cover:
   - scanning and data transfer, with Chromium's fake camera fed generated QR videos;
   - a redeploy on a server that caches like GitHub Pages;
   - offline mode, two open tabs, damaged imports, the crash screen and violations of the security policy.
@@ -186,7 +188,10 @@ npm test             # unit tests (Node's built-in runner)
 npm run e2e          # Playwright end-to-end tests (builds + previews the app)
 E2E_BASE_URL=http://localhost:8080/ npm run e2e   # same tests against a running deployment
 E2E_PREBUILT=1 npm run e2e                         # test the existing dist/ (as CI does)
+npx vite build --mode embedded                     # one JS bundle that may run in another page's frame (previews)
 ```
+
+The `embedded` build has no service worker, CSP meta tag or frame refusal, so it is for previews only (it can't work offline). Inlined into one page, it is what the claude.ai preview link runs.
 
 The end-to-end tests feed Chromium's fake camera with generated QR-code videos, so device scanning and multi-code transfers are tested through the real camera pipeline.
 

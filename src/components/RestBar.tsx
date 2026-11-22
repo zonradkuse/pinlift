@@ -25,7 +25,11 @@ export function primeAlarm() {
   try { audio ??= new AudioContext(); void audio.resume(); } catch { /* no audio */ }
 }
 
-function alarm() {
+/** Short vibration, e.g. for the last seconds of a hold. */
+export const buzz = () => navigator.vibrate?.(80);
+
+/** Vibration, plus a beep when the timer sound is on in Settings. */
+export function alarm() {
   navigator.vibrate?.([200, 100, 200]);
   if (!audio || !getLocal().restSound) return;
   for (const start of [0, 0.25]) {

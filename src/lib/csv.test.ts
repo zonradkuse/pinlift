@@ -20,3 +20,10 @@ test('CSV has one row per set or cardio log, quoted where needed', () => {
     '2026-11-21,18:05,"Upper, ""heavy""",Treadmill,,cardio,,,1500,5000,',
   ]);
 });
+
+test('CSV: timed sets go to duration_s, not reps', () => {
+  const d = emptyData();
+  d.sessions.s = { id: 's', startedAt: 0, updatedAt: 0, entries: [{ id: 'e', deviceId: 'plank', sets: [{ weight: 0, reps: 45, at: 0 }] }] };
+  const row = toCsv(d, () => ({ name: 'Plank', timed: true }) as Device).trim().split('\n')[1];
+  assert.match(row, /,Plank,1,work,0,,45,,$/);
+});

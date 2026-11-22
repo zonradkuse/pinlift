@@ -37,7 +37,7 @@ export function DeviceAbout({ data, dev }: { data: AppData; dev: Device }) {
       {dev.kind === 'strength' && (
         <div class="grid-2">
           {NUMERIC.map(([key, label]) => (
-            <label class="field"><span>{label}</span><input inputMode="decimal" defaultValue={String(opts[key])}
+            <label class="field"><span>{dev.timed ? label.replace('reps', 'seconds') : label}</span><input inputMode="decimal" defaultValue={String(opts[key])}
               onChange={(e) => set({ [key]: positive((e.target as HTMLInputElement).value) })} /></label>
           ))}
         </div>
