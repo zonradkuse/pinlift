@@ -3,6 +3,9 @@ import type { CardioType, Device, Muscle, Workout } from '../lib/types.ts';
 // Descriptions and cues are generic coaching advice written for this app; adjust per machine in the app.
 const s = (id: string, name: string, primary: Muscle[], secondary: Muscle[], step: number, description: string, cues: string[]): Device =>
   ({ id, name, kind: 'strength', primary, secondary, step, description, cues });
+/** Bodyweight exercise: the weight field is added weight (vest, belt); `reps` is the default rep range. */
+const b = (id: string, name: string, primary: Muscle[], secondary: Muscle[], reps: [number, number], description: string, cues: string[]): Device =>
+  ({ ...s(id, name, primary, secondary, 2.5, description, cues), bodyweight: true, reps });
 const c = (id: string, name: string, cardio: CardioType, primary: Muscle[], description: string, cues: string[]): Device =>
   ({ id, name, kind: 'cardio', cardio, primary, secondary: [], step: 0, description, cues });
 
@@ -132,6 +135,40 @@ export const CATALOG: Device[] = [
   s('db-curl', 'Dumbbell Curl', ['biceps'], ['forearms'], 2,
     'Alternating or simultaneous curls (weight per dumbbell).',
     ['Elbows stay at your sides', 'No swinging', 'Rotate the palms up as you curl']),
+  // Bodyweight (no equipment, or just a bar)
+  b('push-up', 'Push-up', ['chest'], ['triceps', 'shoulders', 'abs'], [10, 20],
+    'Lower the body as one straight plank until the chest nearly touches the floor, then press up.',
+    ['Hands slightly wider than the shoulders', 'Squeeze glutes and abs so the hips do not sag', 'Elbows about 45° from the body', 'Too hard? Start with the hands on a bench']),
+  b('pike-push-up', 'Pike Push-up', ['shoulders'], ['triceps', 'traps'], [6, 12],
+    'Hips high in an inverted V; lower the head towards the floor between the hands.',
+    ['Walk the feet closer to make it harder', 'Head travels forward of the hands', 'Keep the legs as straight as you can']),
+  b('pull-up', 'Pull-up', ['lats'], ['biceps', 'upper_back', 'rear_delts', 'forearms'], [5, 10],
+    'Hang from a bar with an overhand grip and pull until the chin clears the bar.',
+    ['Start from a dead hang with straight arms', 'Pull the elbows down towards the ribs', 'No kipping or swinging', 'Can\'t do one yet? Use the assisted machine or a band']),
+  b('chin-up', 'Chin-up', ['lats', 'biceps'], ['upper_back', 'forearms'], [5, 10],
+    'Like a pull-up with an underhand, shoulder-width grip; more biceps.',
+    ['Palms face you', 'Chest up towards the bar', 'Lower all the way down under control']),
+  b('dip', 'Dip (Parallel Bars)', ['triceps', 'chest'], ['shoulders'], [6, 12],
+    'Support yourself on parallel bars and lower until the upper arms are about parallel to the floor.',
+    ['Shoulders down, away from the ears', 'Lean forward slightly for more chest, stay upright for more triceps', 'Stop if you feel it in the front of the shoulder']),
+  b('inverted-row', 'Inverted Row', ['upper_back', 'lats'], ['biceps', 'rear_delts'], [8, 15],
+    'Lie under a bar (Smith machine or rack), body straight, and pull the chest up to the bar.',
+    ['Heels on the floor, body like a plank', 'Squeeze the shoulder blades at the top', 'Lower the bar or bend the knees to make it easier']),
+  b('bodyweight-squat', 'Bodyweight Squat', ['quads', 'glutes'], ['hamstrings', 'adductors'], [15, 25],
+    'Sit back and down until the thighs are at least parallel, then stand up.',
+    ['Feet shoulder-width, toes slightly out', 'Knees follow the toes', 'Chest up, weight on the whole foot']),
+  b('lunge', 'Lunge', ['quads', 'glutes'], ['hamstrings', 'adductors', 'calves'], [8, 15],
+    'Step forward and lower until both knees are bent about 90°; reps per leg.',
+    ['Torso upright', 'Front knee over the ankle, not caving in', 'Back knee comes close to the floor']),
+  b('glute-bridge', 'Glute Bridge', ['glutes'], ['hamstrings', 'lower_back'], [12, 20],
+    'Lying on your back with bent knees, push the hips up until the body is straight from knees to shoulders.',
+    ['Drive through the heels', 'Squeeze the glutes at the top for a second', 'Do not overarch the lower back']),
+  b('hanging-leg-raise', 'Hanging Leg Raise', ['abs'], ['obliques', 'forearms'], [8, 15],
+    'Hang from a bar and raise the legs to hip height or higher.',
+    ['Avoid swinging; pause at the bottom', 'Tilt the pelvis up at the top', 'Bend the knees to make it easier']),
+  b('crunch', 'Crunch', ['abs'], ['obliques'], [15, 25],
+    'Lying on your back with bent knees, curl the shoulders off the floor.',
+    ['Lower back stays on the floor', 'Do not pull on your neck', 'Exhale as you curl up']),
   // Cardio
   c('treadmill', 'Treadmill', 'run', ['quads', 'hamstrings', 'calves', 'glutes'],
     'Running or walking. Log distance and time; speed and pace are calculated.',
@@ -182,12 +219,12 @@ export const MUSCLE_GROUPS: { id: string; name: string; muscles: Muscle[] }[] = 
   { id: 'glutes', name: 'Glutes', muscles: ['glutes'] },
 ];
 
-/** Filter chips: muscle groups plus cardio. */
-export const FILTER_GROUPS = [...MUSCLE_GROUPS, { id: 'cardio', name: 'Cardio', muscles: [] as Muscle[] }];
+/** Filter chips: muscle groups plus bodyweight exercises and cardio. */
+export const FILTER_GROUPS = [...MUSCLE_GROUPS, { id: 'bodyweight', name: 'Bodyweight', muscles: [] as Muscle[] }, { id: 'cardio', name: 'Cardio', muscles: [] as Muscle[] }];
 
-/** Does the device primarily train any of the groups (or is it cardio, for the cardio group)? */
-export const inGroups = (dev: Device, groupIds: string[]) => groupIds.some((g) => g === 'cardio'
-  ? dev.kind === 'cardio'
+/** Does the device primarily train any of the groups (or is it cardio / a bodyweight exercise, for those chips)? */
+export const inGroups = (dev: Device, groupIds: string[]) => groupIds.some((g) => g === 'cardio' ? dev.kind === 'cardio'
+  : g === 'bodyweight' ? !!dev.bodyweight
   : dev.primary.some((m) => MUSCLE_GROUPS.find((x) => x.id === g)?.muscles.includes(m)));
 
 export const muscleSummary = (dev: Device) => (dev.kind === 'cardio' ? 'Cardio' : dev.primary.map((m) => MUSCLES[m]).join(', '));

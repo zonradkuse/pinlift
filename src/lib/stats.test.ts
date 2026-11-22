@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { e1rm, sessionSummary, previousSets, computePRs, lastActivity, isStale, endTime, STALE_MS } from './stats.ts';
+import { device, lift, set, session as mkSession } from './fixtures.ts';
 import type { Session, Entry, Device, StrengthSet } from './types.ts';
 
 const strength = (deviceId: string, ...s: [number, number][]): Entry =>
@@ -117,4 +118,16 @@ test('drop sets count as volume but never as a record', () => {
   assert.deepEqual(computePRs([a, b], getDevice), []);
   const c = session('c', 3, [{ id: 'y', deviceId: 'press', sets: [{ weight: 50, reps: 10, at: 0 }, { weight: 40, reps: 8, at: 0, kind: 'drop' }] }]);
   assert.equal(sessionSummary(c).volume, 820);
+});
+
+test('computePRs for bodyweight exercises: more added weight, else more reps in one set', () => {
+  const pu = device('pu', { bodyweight: true });
+  const prs = computePRs([
+    mkSession('a', 1, [lift('pu', [0, 10], [0, 8])]),
+    mkSession('b', 2, [lift('pu', [0, 12])]),
+    mkSession('c', 3, [lift('pu', [0, 11])]),
+    mkSession('d', 4, [lift('pu', [5, 6])]),
+    mkSession('e', 5, [lift('pu', [0, 12], set(0, 20, { kind: 'drop' }))]),
+  ], () => pu);
+  assert.deepEqual(prs.map((p) => [p.sessionId, p.kind, p.value, p.previous]), [['b', 'reps', 12, 10], ['d', 'added', 5, 0]]);
 });

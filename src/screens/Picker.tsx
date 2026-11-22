@@ -40,7 +40,7 @@ export function Picker({ assign, addTo }: { assign?: string; addTo?: string }) {
     return (
       <ListItem onClick={() => pick(d)} title={d.name} supporting={muscleSummary(d)}
         leading={<span class="pictogram-tile"><Pictogram device={d} size={40} /></span>}
-        trailing={<>{top && <span class="trailing num">{fmtSet(top)}</span>}{withQr.has(d.id) && <Icon name="qr_code" size={18} />}</>} />
+        trailing={<>{top && <span class="trailing num">{fmtSet(top, { bw: d.bodyweight })}</span>}{withQr.has(d.id) && <Icon name="qr_code" size={18} />}</>} />
     );
   };
 

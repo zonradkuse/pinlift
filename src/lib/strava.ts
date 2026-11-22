@@ -1,6 +1,6 @@
 import type { CardioType, Device, Session } from './types.ts';
 import { isWork, sessionSummary } from './stats.ts';
-import { fmtCardio, fmtKg, fmtNum } from './format.ts';
+import { fmtCardio, fmtKg, fmtLoad } from './format.ts';
 
 export interface StravaAuth {
   clientId: string; clientSecret: string;
@@ -37,7 +37,7 @@ export function buildActivity(s: Session, getDevice: (id: string) => Device | un
     if (work.length) {
       const harder = (a: number, b: number) => (d?.assisted ? a < b : a > b);
       const best = work.reduce((a, b) => (harder(b.weight, a.weight) || (b.weight === a.weight && b.reps > a.reps) ? b : a));
-      lines.push(`${name}: ${work.length} sets, best ${fmtNum(best.weight)} kg${d?.assisted ? ' assistance' : ''} × ${best.reps}`);
+      lines.push(`${name}: ${work.length} sets, best ${fmtLoad(best.weight, d?.bodyweight)}${d?.assisted ? ' assistance' : ''} × ${best.reps}`);
     }
     if (e.cardio) {
       if (d?.cardio) cardioTypes.add(d.cardio);

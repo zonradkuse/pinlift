@@ -4,7 +4,7 @@ import { deviceLookup, finishedSessions, workoutOf } from '../lib/selectors.ts';
 import { useDerived } from '../lib/derived.ts';
 import { sessionSummary } from '../lib/stats.ts';
 import { formatDuration } from '../lib/cardio.ts';
-import { fmtDate, fmtDistance, fmtKg } from '../lib/format.ts';
+import { fmtAmount, fmtDate } from '../lib/format.ts';
 import { href, to } from '../lib/routes.ts';
 import type { Session } from '../lib/types.ts';
 
@@ -28,10 +28,9 @@ export function History() {
             {list.map((s) => {
               const sum = sessionSummary(s, lookup);
               const n = prs.filter((p) => p.sessionId === s.id).length;
-              const amount = sum.sets ? fmtKg(sum.volume) : sum.distanceM ? fmtDistance(sum.distanceM) : `${formatDuration(sum.cardioSec)} cardio`;
               return (
                 <ListItem href={href(to.summary(s.id))} title={workoutOf(data, s)?.name || 'Workout'}
-                  supporting={<span class="num">{fmtDate(s.startedAt)} · {formatDuration(sum.durationSec)} · {amount}</span>}
+                  supporting={<span class="num">{fmtDate(s.startedAt)} · {formatDuration(sum.durationSec)} · {fmtAmount(sum)}</span>}
                   trailing={n > 0 && <span class="chip static gold"><Icon name="emoji_events" size={16} />{n}</span>} />
               );
             })}

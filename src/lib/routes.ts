@@ -21,6 +21,7 @@ export const to = {
   history: () => '/history',
   awards: () => '/awards',
   stats: () => '/stats',
+  body: () => '/body',
   settings: () => '/settings',
   send: () => '/send',
   stravaCode: (code: string) => `/strava-code${q({ code })}`,

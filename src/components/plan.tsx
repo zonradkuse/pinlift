@@ -6,7 +6,7 @@ import { startWorkout } from '../lib/actions.ts';
 import { isForgotten } from '../lib/ui-state.ts';
 import { suggest } from '../lib/progression.ts';
 import { isWork, previousSets, sessionSummary } from '../lib/stats.ts';
-import { fmtCardio, fmtNum, fmtSets } from '../lib/format.ts';
+import { fmtCardio, fmtLoad, fmtSets } from '../lib/format.ts';
 import { navigate } from '../lib/router.ts';
 import { href, to } from '../lib/routes.ts';
 import type { AppData, Device, Session, Workout } from '../lib/types.ts';
@@ -16,13 +16,13 @@ function rowInfo(data: AppData, d: Device, s?: Session): string {
   const entries = s?.entries.filter((e) => e.deviceId === d.id) ?? [];
   if (entries.length) {
     return d.kind === 'cardio' ? entries.map((e) => e.cardio && fmtCardio(e.cardio, d.cardio)).join(' · ')
-      : fmtSets(entries.flatMap((e) => e.sets).filter(isWork), { compact: true });
+      : fmtSets(entries.flatMap((e) => e.sets).filter(isWork), { compact: true, bw: d.bodyweight });
   }
   const prev = previousSets(Object.values(data.sessions), d.id, s?.id);
   if (!prev.length) return 'Not done yet';
-  const last = fmtSets(prev, { compact: true });
+  const last = fmtSets(prev, { compact: true, bw: d.bodyweight });
   const target = d.kind === 'strength' ? suggest(prev, deviceOptions(data, d)) : null;
-  return target ? `Target ${fmtNum(target.weight)} kg × ${target.reps}${target.kind === 'same' ? '+' : ''} · last ${last}` : `Last ${last}`;
+  return target ? `Target ${fmtLoad(target.weight, d.bodyweight)} × ${target.reps}${target.kind === 'same' ? '+' : ''} · last ${last}` : `Last ${last}`;
 }
 
 /** A device in a workout plan, with its pictogram and target (or today's sets when `session` is given). */

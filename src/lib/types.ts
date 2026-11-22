@@ -18,6 +18,10 @@ export interface Device {
   step: number;
   /** Counterweight machines (assisted dip/chin): less weight is harder. */
   assisted?: boolean;
+  /** Bodyweight exercise: the logged weight is added weight (0 = bodyweight only). */
+  bodyweight?: boolean;
+  /** Default rep range for the suggestions, e.g. higher for bodyweight exercises. */
+  reps?: [number, number];
 }
 
 /** Every synced record carries updatedAt; the newer copy wins on merge. */
@@ -66,8 +70,13 @@ export interface Workout extends Synced {
   deviceIds: string[];
 }
 
+/** Body weight of a day, keyed by local date (YYYY-MM-DD); `at` is noon of that day. */
+export interface BodyWeight extends Synced { kg: number; at: number }
+
 /** The collections that are synced between devices (each a record of Synced items). */
-export const SYNCED_KEYS = ['sessions', 'workouts', 'customDevices', 'deviceSettings', 'qr'] as const;
+export const SYNCED_KEYS = ['sessions', 'workouts', 'customDevices', 'deviceSettings', 'qr', 'bodyWeights'] as const;
+/** Collections added after the first release: data from older app versions doesn't have them. */
+export const ADDED_LATER: readonly SyncedKey[] = ['bodyWeights'];
 export type SyncedKey = typeof SYNCED_KEYS[number];
 
 /** Everything that is transferred between devices. */
@@ -78,10 +87,11 @@ export interface AppData {
   customDevices: Record<string, CustomDevice>;
   deviceSettings: Record<string, DeviceSettings>;
   qr: Record<string, QrLink>;
+  bodyWeights: Record<string, BodyWeight>;
 }
 
 export const isEmptyData = (d: AppData) => SYNCED_KEYS.every((k) => !Object.keys(d[k]).length);
 
 export const emptyData = (): AppData => ({
-  schema: 1, sessions: {}, workouts: {}, customDevices: {}, deviceSettings: {}, qr: {},
+  schema: 1, sessions: {}, workouts: {}, customDevices: {}, deviceSettings: {}, qr: {}, bodyWeights: {},
 });

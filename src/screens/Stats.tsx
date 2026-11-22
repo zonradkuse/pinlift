@@ -3,19 +3,20 @@ import type { ComponentChildren } from 'preact';
 import { Icon, ListItem, Tile, TopBar, useWide } from '../components/ui.tsx';
 import { ImportActions, fileDropHandlers } from '../components/ImportActions.tsx';
 import type { LocalState } from '../lib/store.ts';
+import type { AppData } from '../lib/types.ts';
 import { BarChart, LineChart } from '../components/Chart.tsx';
 import { Heatmap } from '../components/Heatmap.tsx';
 import { HBars } from '../components/HBars.tsx';
 import { useStore } from '../lib/store.ts';
-import { deviceLookup, deviceName, finishedSessions, getDevice, workoutOf } from '../lib/selectors.ts';
+import { bodyWeights, deviceLookup, deviceName, finishedSessions, getDevice, workoutOf } from '../lib/selectors.ts';
 import { useDerived } from '../lib/derived.ts';
 import { bestSetsByDevice, dailyVolume, DAY_MS, progressSeries, sessionSummary, setsPerMuscleGroup, weekIndex, weeklyStreak } from '../lib/stats.ts';
 import { formatDuration } from '../lib/cardio.ts';
-import { fmtAgo, fmtDate, fmtDistance, fmtKg, fmtNum, fmtPr, fmtSet, fmtShortDate } from '../lib/format.ts';
+import { fmtAgo, fmtAmount, fmtDate, fmtDistance, fmtKg, fmtNum, fmtPr, fmtSet, fmtShortDate } from '../lib/format.ts';
 import { href, to } from '../lib/routes.ts';
 import { MUSCLE_GROUPS } from '../data/catalog.ts';
 
-const MUSCLE_WEEKS = 4, LIST_ROWS = 6;
+const MUSCLE_WEEKS = 4, LIST_ROWS = 6, BODY_WEIGHT_DAYS = 90;
 /** After this many days without an import, a computer's copy is probably behind the phone. */
 const STALE_IMPORT_DAYS = 3;
 
@@ -47,11 +48,31 @@ function DataStatus({ latest, local, now }: { latest: number; local: LocalState;
 }
 
 const Card = ({ title, span, children, action }: { title: string; span?: boolean; children: ComponentChildren; action?: ComponentChildren }) => (
-  <section class={'card outlined dash-card' + (span ? ' span-2' : '')}>
+  <section class={'card outlined dash-card' + (span ? ' span-2' : '')} aria-label={title}>
     <div class="row"><h2 class="title-m spacer">{title}</h2>{action}</div>
     {children}
   </section>
 );
+
+const fmtChange = (kg: number) => `${kg > 0 ? '+' : kg < 0 ? '−' : '±'}${fmtNum(Math.abs(kg))} kg`;
+
+/** Latest body weight, the change over the last 90 days and a small trend chart. */
+function BodyWeightCard({ data, now, wide }: { data: AppData; now: number; wide: boolean }) {
+  const all = bodyWeights(data), latest = all.at(-1);
+  const recent = all.filter((w) => w.at >= now - BODY_WEIGHT_DAYS * DAY_MS);
+  return (
+    <Card title="Body weight" action={<a class="btn text interactive" href={href(to.body())}>Log weight</a>}>
+      {!latest ? <p class="body-m muted">Log your weight now and then to see the trend here.</p> : <>
+        <div class="row wrap" style={{ alignItems: 'baseline' }}>
+          <span class="headline-s num">{fmtKg(latest.kg)}</span>
+          {recent.length > 1 && <span class="body-m muted">{fmtChange(latest.kg - recent[0].kg)} since {fmtShortDate(recent[0].at)}</span>}
+        </div>
+        {recent.length > 1 && <LineChart points={recent.map((w) => ({ x: w.at, y: w.kg }))} unit="kg" label="Body weight trend"
+          {...(wide ? { width: 560, height: 160 } : { height: 120 })} />}
+      </>}
+    </Card>
+  );
+}
 
 /** Analytics dashboard: the start page on desktop. */
 export function Stats() {
@@ -61,9 +82,16 @@ export function Stats() {
   const [picked, setPicked] = useState('');
   const lookup = deviceLookup(data);
   const sessions = finishedSessions(data);
-  if (!sessions.length) return <main class="screen wide-screen" {...fileDropHandlers}><TopBar title="Analytics" /><NoData /></main>;
-
   const now = Date.now();
+  if (!sessions.length) {
+    return (
+      <main class="screen wide-screen" {...fileDropHandlers}>
+        <TopBar title="Analytics" /><NoData />
+        <div style={{ maxWidth: '640px', margin: '0 auto' }}><BodyWeightCard data={data} now={now} wide={false} /></div>
+      </main>
+    );
+  }
+
   const sums = sessions.map((s) => ({ s, sum: sessionSummary(s, lookup) }));
   const total = sums.reduce((n, x) => n + x.sum.volume, 0);
   const distance = sums.reduce((n, x) => n + x.sum.distanceM, 0);
@@ -106,15 +134,16 @@ export function Stats() {
           <p class="body-s muted mt-8">Working sets of strength exercises; cardio isn't counted.</p>
         </Card>
         {selectedDevice && (
-          <Card title="Estimated 1-rep max (kg)" span>
+          <Card title="Estimated 1-rep max (kg)">
             <label class="field" style={{ margin: '8px 0 12px', maxWidth: '360px' }}><span>Device</span>
               <select value={selected} onChange={(e) => setPicked((e.target as HTMLSelectElement).value)}>
                 {byName.map((id) => <option value={id}>{deviceName(data, id)}</option>)}
               </select></label>
             <LineChart points={progressSeries(sessions, selectedDevice).points} unit="kg" label={`Estimated one-rep max for ${selectedDevice.name}`}
-              {...(wide ? { width: 1080, height: 240 } : chartSize)} />
+              {...chartSize} />
           </Card>
         )}
+        <BodyWeightCard data={data} now={now} wide={wide} />
         <Card title="Recent personal records" action={<a class="btn text interactive" href={href(to.awards())}>All</a>}>
           {!prs.length && <p class="body-m muted">No records yet.</p>}
           <ul class="list flush">
@@ -128,7 +157,7 @@ export function Stats() {
           <ul class="list flush">
             {sums.slice(-LIST_ROWS).reverse().map(({ s, sum }) => (
               <ListItem href={href(to.summary(s.id))} title={workoutOf(data, s)?.name || 'Workout'}
-                supporting={<span class="num">{fmtDate(s.startedAt)} · {formatDuration(sum.durationSec)} · {sum.sets ? fmtKg(sum.volume) : fmtDistance(sum.distanceM)}</span>} />
+                supporting={<span class="num">{fmtDate(s.startedAt)} · {formatDuration(sum.durationSec)} · {fmtAmount(sum)}</span>} />
             ))}
           </ul>
         </Card>

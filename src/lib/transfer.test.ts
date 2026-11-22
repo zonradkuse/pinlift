@@ -71,3 +71,11 @@ test('changedSince keeps only records changed after the timestamp, including del
   assert.deepEqual(c.qr, {});
   assert.equal(c.schema, 1);
 });
+
+test('body weights travel with a transfer, also as changes only', async () => {
+  const d = emptyData();
+  d.bodyWeights['2026-11-20'] = { kg: 80.4, at: 1, updatedAt: 10 };
+  d.bodyWeights['2026-11-01'] = { kg: 81, at: 0, updatedAt: 2 };
+  assert.deepEqual((await unpack(await pack(d))).data.bodyWeights, d.bodyWeights);
+  assert.deepEqual(Object.keys(changedSince(d, 5).bodyWeights), ['2026-11-20']);
+});

@@ -18,7 +18,7 @@ export function Choose({ code }: { code: string }) {
       <ul class="list">
         {devices.map((d) => {
           const top = lastBest(data, d);
-          return <ListItem href={href(to.device(d.id))} title={d.name} leading={<span class="pictogram-tile"><Pictogram device={d} size={40} /></span>} supporting={top ? `Last: ${fmtSet(top)}` : 'Not done yet'} trailing={<Icon name="chevron_right" />} />;
+          return <ListItem href={href(to.device(d.id))} title={d.name} leading={<span class="pictogram-tile"><Pictogram device={d} size={40} /></span>} supporting={top ? `Last: ${fmtSet(top, { bw: d.bodyweight })}` : 'Not done yet'} trailing={<Icon name="chevron_right" />} />;
         })}
       </ul>
       <a class="btn outlined interactive mt-16" href={href(to.devices({ addTo: code }))}><Icon name="add" />Add exercise to this code</a>

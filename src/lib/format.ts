@@ -1,6 +1,6 @@
 import { CARDIO, formatDuration, pace, speedKmh } from './cardio.ts';
 import type { CardioLog, CardioType, StrengthSet } from './types.ts';
-import type { PR } from './stats.ts';
+import type { PR, SessionSummary } from './stats.ts';
 
 const nf = (digits: number) => new Intl.NumberFormat('en', { maximumFractionDigits: digits });
 export const fmtNum = (n: number, digits = 1) => nf(digits).format(n);
@@ -20,20 +20,32 @@ export function fmtCardio(c: CardioLog, type?: CardioType): string {
     : `${base} (${fmtNum(speedKmh(c.distanceM, c.durationSec))} km/h)`;
 }
 
+/** What a workout amounted to: weight lifted, else reps (bodyweight, assisted), else cardio distance or time. */
+export const fmtAmount = (sum: SessionSummary) => sum.volume ? fmtKg(sum.volume) : sum.sets ? `${sum.reps} reps`
+  : sum.distanceM ? fmtDistance(sum.distanceM) : `${formatDuration(sum.cardioSec)} cardio`;
+
 export const SET_KIND_LABEL = { warmup: 'warm-up', drop: 'drop' } as const;
 
+/** Weight of a set; on bodyweight exercises (`bw`) it is added weight: "BW", "BW + 5 kg" (compact "BW+5"). */
+export const fmtLoad = (kg: number, bw?: boolean, compact?: boolean) =>
+  !bw ? (compact ? fmtNum(kg) : fmtKg(kg)) : !kg ? 'BW' : compact ? `BW+${fmtNum(kg)}` : `BW + ${fmtKg(kg)}`;
+
+export interface SetFormat { compact?: boolean; kind?: boolean; bw?: boolean }
+
 /** "42.5 kg × 8", compact "42.5×8"; `kind` appends "· warm-up" / "· drop". */
-export function fmtSet(s: StrengthSet, opts: { compact?: boolean; kind?: boolean } = {}): string {
-  const base = opts.compact ? `${fmtNum(s.weight)}×${s.reps}` : `${fmtNum(s.weight)} kg × ${s.reps}`;
+export function fmtSet(s: StrengthSet, opts: SetFormat = {}): string {
+  const base = `${fmtLoad(s.weight, opts.bw, opts.compact)}${opts.compact ? '×' : ' × '}${s.reps}`;
   return opts.kind && s.kind ? `${base} · ${SET_KIND_LABEL[s.kind]}` : base;
 }
 
-export const fmtSets = (sets: StrengthSet[], opts: { compact?: boolean } = {}) => sets.map((s) => fmtSet(s, opts)).join(opts.compact ? ' · ' : ', ');
+export const fmtSets = (sets: StrengthSet[], opts: Omit<SetFormat, 'kind'> = {}) => sets.map((s) => fmtSet(s, opts)).join(opts.compact ? ' · ' : ', ');
 
 export const fmtPr = (p: PR) => p.kind === 'weight' ? `${fmtKg(p.value)} (was ${fmtKg(p.previous)})`
   : p.kind === 'assist' ? `only ${fmtKg(p.value)} assistance (was ${fmtKg(p.previous)})`
   : p.kind === 'speed' ? `${fmtNum(p.value)} km/h (was ${fmtNum(p.previous)})`
   : p.kind === 'floors' ? `${p.value} floors (was ${p.previous})`
+  : p.kind === 'added' ? `${fmtLoad(p.value, true)} (was ${fmtLoad(p.previous, true)})`
+  : p.kind === 'reps' ? `${p.value} reps (was ${p.previous})`
   : `${fmtDistance(p.value)} (was ${fmtDistance(p.previous)})`;
 
 export const fmtProgress = (p: { weight: number } | { reps: number }) => 'weight' in p

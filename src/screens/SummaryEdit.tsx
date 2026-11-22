@@ -24,12 +24,12 @@ export function EditTimes({ s }: { s: Session }) {
 
 type Edit = { value: StrengthSet } | 'delete' | null;
 
-async function editSetDialog(set: StrengthSet): Promise<Edit> {
+async function editSetDialog(set: StrengthSet, bw?: boolean): Promise<Edit> {
   const v = { ...set };
   let del = false;
   const ok = await confirmDialog({ title: 'Edit set', confirm: 'Save', body: (
     <div class="stack mt-8" style={{ color: 'var(--md-on-surface)' }}>
-      <label class="field"><span>Weight (kg)</span><input inputMode="decimal" defaultValue={String(set.weight)}
+      <label class="field"><span>{bw ? 'Added weight (kg)' : 'Weight (kg)'}</span><input inputMode="decimal" defaultValue={String(set.weight)}
         onInput={(e) => { v.weight = parseDecimal((e.target as HTMLInputElement).value) ?? 0; }} /></label>
       <label class="field"><span>Reps</span><input inputMode="numeric" defaultValue={String(set.reps)}
         onInput={(e) => { v.reps = Math.round(parseDecimal((e.target as HTMLInputElement).value) ?? 0); }} /></label>
@@ -45,7 +45,7 @@ async function editSetDialog(set: StrengthSet): Promise<Edit> {
 }
 
 /** One exercise of a finished workout: tap a set to edit it, or remove the exercise. */
-export function EditExercise({ s, deviceId, name }: { s: Session; deviceId: string; name: string }) {
+export function EditExercise({ s, deviceId, name, bw }: { s: Session; deviceId: string; name: string; bw?: boolean }) {
   const entries = s.entries.filter((e) => e.deviceId === deviceId);
   return (
     <li class="card outlined" style={{ margin: '0 0 8px', listStyle: 'none' }}>
@@ -56,10 +56,10 @@ export function EditExercise({ s, deviceId, name }: { s: Session; deviceId: stri
       <div class="row wrap">
         {entries.flatMap((e) => e.sets.map((set, i) => (
           <button class="chip interactive num" onClick={async () => {
-            const r = await editSetDialog(set);
+            const r = await editSetDialog(set, bw);
             if (r === 'delete') removeSet(s.id, e.id, i);
             else if (r) updateSet(s.id, e.id, i, r.value);
-          }}>{fmtSet(set, { compact: true })}{set.kind ? ` ${SET_KIND_LABEL[set.kind]}` : ''}<Icon name="edit" /></button>
+          }}>{fmtSet(set, { compact: true, bw })}{set.kind ? ` ${SET_KIND_LABEL[set.kind]}` : ''}<Icon name="edit" /></button>
         )))}
         {entries.filter((e) => e.cardio).map((e) => <span class="chip static">{fmtCardio(e.cardio!)}</span>)}
       </div>

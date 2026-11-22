@@ -44,6 +44,18 @@ test('sanitize drops malformed records, keeps valid and unknown fields, clamps f
   assert.equal(dropped, 6);
 });
 
+test('sanitize: data from before body weights existed gets an empty collection; body weights are validated and merge per day', () => {
+  const old = { schema: 1, sessions: {}, workouts: {}, customDevices: {}, deviceSettings: {}, qr: {} };
+  assert.deepEqual(sanitize(old, 0).data.bodyWeights, {});
+  const { data, dropped } = sanitize({ ...old, bodyWeights: {
+    '2026-11-20': { kg: 80.5, at: 1, updatedAt: 5 }, text: { kg: '80', at: 1, updatedAt: 1 }, zero: { kg: 0, at: 1, updatedAt: 1 } } }, 0);
+  assert.deepEqual(Object.keys(data.bodyWeights), ['2026-11-20']);
+  assert.equal(dropped, 2);
+  const other = { ...data, bodyWeights: { '2026-11-20': { kg: 80.1, at: 1, updatedAt: 6 }, '2026-11-21': { kg: 80, at: 2, updatedAt: 1 } } };
+  assert.deepEqual(mergeData(data, other).data.bodyWeights['2026-11-20'].kg, 80.1);
+  assert.equal(Object.keys(mergeData(data, other).data.bodyWeights).length, 2);
+});
+
 test('sanitize rejects other data and data from a newer schema', () => {
   assert.throws(() => sanitize({ hello: 1 }, 0), /not Pinlift data/);
   assert.throws(() => sanitize({ schema: 2, sessions: {}, workouts: {}, customDevices: {}, deviceSettings: {}, qr: {} }, 0), NewerVersionError);

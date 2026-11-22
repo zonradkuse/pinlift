@@ -1,5 +1,5 @@
 // Rules that keep data consistent between devices and app versions.
-import { SYNCED_KEYS, type AppData, type Synced, type SyncedKey } from './types.ts';
+import { ADDED_LATER, SYNCED_KEYS, type AppData, type Synced, type SyncedKey } from './types.ts';
 import { DAY_MS } from './stats.ts';
 
 /** Data format version. Additive changes (new optional fields) keep it; writes always spread existing records. */
@@ -33,6 +33,7 @@ const VALID: Record<SyncedKey, (r: Rec) => boolean> = {
     && isNum(r.step) && isStr(r.description) && strings(r.cues),
   deviceSettings: (r) => ['step', 'repMin', 'repMax', 'rest'].every((k) => opt(r[k], isNum)) && opt(r.notes, isStr) && opt(r.hidden, isBool),
   qr: (r) => strings(r.deviceIds) || isStr(r.deviceId),
+  bodyWeights: (r) => isNum(r.kg) && r.kg > 0 && isNum(r.at),
 };
 
 /**
@@ -40,13 +41,15 @@ const VALID: Record<SyncedKey, (r: Rec) => boolean> = {
  * break the app), timestamps more than a day in the future are clamped (they could never be overwritten).
  */
 export function sanitize(raw: unknown, now = Date.now()): { data: AppData; dropped: number } {
-  if (!isObj(raw) || !isNum(raw.schema) || !SYNCED_KEYS.every((k) => isObj(raw[k]))) throw new Error('This is not Pinlift data');
+  if (!isObj(raw) || !isNum(raw.schema) || !SYNCED_KEYS.every((k) => isObj(raw[k]) || (raw[k] === undefined && ADDED_LATER.includes(k)))) {
+    throw new Error('This is not Pinlift data');
+  }
   if (raw.schema > SCHEMA) throw new NewerVersionError();
   let dropped = 0;
   const data = { schema: SCHEMA } as AppData;
   for (const k of SYNCED_KEYS) {
     const out: Record<string, unknown> = {};
-    for (const [id, r] of Object.entries(raw[k] as Rec)) {
+    for (const [id, r] of Object.entries((raw[k] ?? {}) as Rec)) {
       if (isObj(r) && isNum(r.updatedAt) && opt(r.deleted, isBool) && VALID[k](r)) out[id] = r.updatedAt > now + DAY_MS ? { ...r, updatedAt: now } : r;
       else dropped++;
     }

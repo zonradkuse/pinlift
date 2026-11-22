@@ -17,6 +17,7 @@ import { Summary } from './screens/Summary.tsx';
 import { WorkoutEditor } from './screens/WorkoutEditor.tsx';
 import { History } from './screens/History.tsx';
 import { Stats } from './screens/Stats.tsx';
+import { BodyWeightScreen } from './screens/BodyWeight.tsx';
 import { Awards } from './screens/Awards.tsx';
 import { Settings, StravaCode } from './screens/Settings.tsx';
 import { Send } from './screens/Send.tsx';
@@ -43,6 +44,7 @@ export function App() {
       case 'workout': return <WorkoutEditor key={p1} id={p1} />;
       case 'history': return <History />;
       case 'stats': return <Stats />;
+      case 'body': return <BodyWeightScreen />;
       case 'awards': return <Awards />;
       case 'settings': return <Settings />;
       case 'send': return <Send />;

@@ -25,5 +25,5 @@ export function SetupNotes({ data, dev }: { data: AppData; dev: Device }) {
   return notes
     ? <button class="card outlined body-m notes interactive" style={{ textAlign: 'left', width: '100%' }} onClick={() => setEditing(true)}
         aria-label={`Setup: ${notes}. Tap to edit`}><strong>Setup: </strong>{notes}</button>
-    : <button class="chip interactive" style={{ alignSelf: 'flex-start' }} onClick={() => setEditing(true)}><Icon name="add" />Add seat setting</button>;
+    : <button class="chip interactive" style={{ alignSelf: 'flex-start' }} onClick={() => setEditing(true)}><Icon name="add" />{dev.bodyweight ? 'Add note' : 'Add seat setting'}</button>;
 }

@@ -108,7 +108,7 @@ test('assisted machine: suggestion goes towards less assistance, no lifted weigh
   await logSets(page, 'assisted-dip-chin', [[40, 12], [40, 12], [40, 12]]);
   await expect(page.getByLabel('Assistance', { exact: true })).toBeVisible();
   await finishWorkout(page);
-  await expect(page.getByTestId('total-volume')).toHaveText('0 kg');
+  await expect(page.getByTestId('total-volume')).toHaveText('36 reps'); // nothing lifted: reps instead of "0 kg"
   await page.goto('./#/device/assisted-dip-chin');
   await expect(page.getByTestId('suggestion')).toHaveText('35 kg assist × 8');
 });

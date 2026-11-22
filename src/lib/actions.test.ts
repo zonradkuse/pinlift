@@ -1,8 +1,8 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { getData, handleSaveErrors, update, seedData } from './store.ts';
-import { finishSession, linkQr, logSet, removeSet, updateSet } from './actions.ts';
-import { activeSession } from './selectors.ts';
+import { deleteBodyWeight, finishSession, linkQr, logBodyWeight, logSet, removeSet, updateSet } from './actions.ts';
+import { activeSession, bodyWeights } from './selectors.ts';
 import { mergeData } from './merge.ts';
 import { STALE_MS } from './stats.ts';
 import type { AppData } from './types.ts';
@@ -61,4 +61,18 @@ test('an edit wins against a record received from a device whose clock runs an h
   updateSet(s.id, s.entries[0].id, 0, { weight: 105 });
   const back = mergeData(fromFastDevice, getData()).data; // the fast device receives the edit
   assert.equal(back.sessions[s.id].entries[0].sets[0].weight, 105);
+});
+
+test('body weight: one entry per day where the latest wins, other days by key, delete with undo', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 20, 7, 30).getTime() });
+  logBodyWeight(81.2);
+  logBodyWeight(80.9);
+  logBodyWeight(81.5, '2026-11-18');
+  assert.deepEqual(bodyWeights(getData()).map((w) => [w.day, w.kg]), [['2026-11-18', 81.5], ['2026-11-20', 80.9]]);
+  assert.equal(bodyWeights(getData())[0].at, new Date(2026, 10, 18, 12).getTime());
+  const undo = deleteBodyWeight('2026-11-20');
+  assert.equal(getData().bodyWeights['2026-11-20'].deleted, true); // tombstone, so the deletion syncs
+  assert.equal(bodyWeights(getData()).length, 1);
+  undo();
+  assert.equal(bodyWeights(getData())[1].kg, 80.9);
 });

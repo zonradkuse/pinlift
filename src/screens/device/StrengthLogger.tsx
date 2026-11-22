@@ -7,7 +7,7 @@ import { toast } from '../../lib/ui-state.ts';
 import { useDerived } from '../../lib/derived.ts';
 import { dropSetWeight, progressVsLast, suggest } from '../../lib/progression.ts';
 import { isWork, previousSession } from '../../lib/stats.ts';
-import { fmtKg, fmtProgress, fmtSet, fmtSets, fmtShortDate } from '../../lib/format.ts';
+import { fmtLoad, fmtProgress, fmtSet, fmtSets, fmtShortDate } from '../../lib/format.ts';
 import { href, to } from '../../lib/routes.ts';
 import { SetupNotes } from './SetupNotes.tsx';
 import type { AppData, Device, Session, StrengthSet } from '../../lib/types.ts';
@@ -24,8 +24,10 @@ function Suggestion({ data, dev, active, onUse }: { data: AppData; dev: Device; 
   if (!sugg) {
     return (
       <div class="card tertiary body-m">
-        First time on this device. Pick {opts.assisted ? 'an assistance' : 'a weight'} you can manage for about {Math.round((opts.repMin + opts.repMax) / 2)} controlled reps
-        — the app will suggest the next one from here.
+        {opts.bodyweight ? `First time on this exercise. Aim for about ${Math.round((opts.repMin + opts.repMax) / 2)} clean reps; once ${opts.repMax} feel easy, `
+          + 'the app suggests adding weight (vest, belt).'
+          : <>First time on this device. Pick {opts.assisted ? 'an assistance' : 'a weight'} you can manage for about {Math.round((opts.repMin + opts.repMax) / 2)} controlled reps
+          — the app will suggest the next one from here.</>}
       </div>
     );
   }
@@ -35,12 +37,12 @@ function Suggestion({ data, dev, active, onUse }: { data: AppData; dev: Device; 
         <Icon name={sugg.kind === 'increase' ? 'trending_up' : sugg.kind === 'decrease' ? 'arrow_downward' : 'fitness_center'} />
         <div class="spacer">
           <div class="label-m">Suggestion</div>
-          <div class="title-l" data-testid="suggestion">{fmtKg(sugg.weight)}{opts.assisted ? ' assist' : ''} × {sugg.reps}{sugg.kind === 'same' ? '+' : ''}</div>
+          <div class="title-l" data-testid="suggestion">{fmtLoad(sugg.weight, opts.bodyweight)}{opts.assisted ? ' assist' : ''} × {sugg.reps}{sugg.kind === 'same' ? '+' : ''}</div>
           <div class="body-m">{sugg.reason}</div>
         </div>
         <button class="btn tonal interactive" onClick={() => onUse(sugg.weight, sugg.reps)}>Use</button>
       </div>
-      {prev && <div class="body-s mt-8" data-testid="last-time">Last time ({fmtShortDate(prev.session.startedAt)}): {fmtSets(prev.sets)}</div>}
+      {prev && <div class="body-s mt-8" data-testid="last-time">Last time ({fmtShortDate(prev.session.startedAt)}): {fmtSets(prev.sets, { bw: opts.bodyweight })}</div>}
     </div>
   );
 }
@@ -54,7 +56,7 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
   const workRows = rows.filter(isWork);
   const last = workRows.at(-1);
   const initial = last ?? (prev && suggest(prev.sets, opts)) ?? undefined;
-  const [weight, setWeight] = useState(initial?.weight ?? prev?.sets.at(-1)?.weight ?? FIRST_TIME_WEIGHT);
+  const [weight, setWeight] = useState(initial?.weight ?? prev?.sets.at(-1)?.weight ?? (opts.bodyweight ? 0 : FIRST_TIME_WEIGHT));
   const [reps, setReps] = useState(initial?.reps ?? opts.repMin);
   const [kind, setKind] = useState<SetKind>(undefined);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -84,7 +86,7 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
       <SetupNotes data={data} dev={dev} />
       {!editing && <Suggestion data={data} dev={dev} active={active} onUse={(w, r) => { setWeight(w); setReps(r); }} />}
       {editing && <div class="title-m">Edit set {label(editing)}</div>}
-      <Stepper label={opts.assisted ? 'Assistance' : 'Weight'} unit="kg" value={weight} step={opts.step} onChange={setWeight} />
+      <Stepper label={opts.assisted ? 'Assistance' : opts.bodyweight ? 'Added weight' : 'Weight'} unit="kg" value={weight} step={opts.step} onChange={setWeight} />
       <Stepper label="Reps" value={reps} step={1} decimals={false} onChange={(v) => setReps(Math.round(v))} />
       <div class="row" role="group" aria-label="Set type">
         <button class="chip interactive" aria-pressed={kind === 'warmup'} onClick={() => chooseKind('warmup')}>{kind === 'warmup' && <Icon name="check" />}Warm-up</button>
@@ -113,9 +115,9 @@ export function StrengthLogger({ data, dev, active }: { data: AppData; dev: Devi
           </div>
           <ul class="list">
             {rows.map((r) => (
-              <ListItem onClick={() => startEdit(r)} selected={!!editing && same(editing, r)} label={`Set ${label(r)}: ${fmtSet(r)}. Tap to edit`}
+              <ListItem onClick={() => startEdit(r)} selected={!!editing && same(editing, r)} label={`Set ${label(r)}: ${fmtSet(r, { bw: opts.bodyweight })}. Tap to edit`}
                 leading={<span class={'avatar' + (r.kind === 'warmup' ? ' muted' : '')}>{label(r)}</span>}
-                title={<span class={'num' + (r.kind === 'warmup' ? ' muted-text' : '')}>{fmtSet(r, { kind: true })}</span>}
+                title={<span class={'num' + (r.kind === 'warmup' ? ' muted-text' : '')}>{fmtSet(r, { kind: true, bw: opts.bodyweight })}</span>}
                 trailing={<Icon name="edit" size={20} />} />
             ))}
           </ul>

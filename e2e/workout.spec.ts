@@ -94,6 +94,7 @@ test('muscle group overview while building a workout and after finishing one', a
 });
 
 test('a rowing-only workout counts as a training day and shows its muscles, but adds no sets', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-20T08:00:00')); // before noon (the heatmap once skipped today then)
   await page.goto('./#/device/rower');
   await page.getByLabel('Minutes').fill('8');
   await page.getByLabel(/Distance/).fill('2000');
@@ -106,4 +107,25 @@ test('a rowing-only workout counts as a training day and shows its muscles, but 
   await page.goto('./#/stats');
   await expect(page.locator('svg[aria-label^="Training days"] rect').last().locator('title')).not.toContainText('rest day');
   await expect(page.getByText('No weights lifted in this period.')).toBeVisible();
+});
+
+test('bodyweight exercise: added weight starts at 0, sets read BW, more reps next time is a record', async ({ page }) => {
+  await page.goto('./#/devices');
+  await page.getByLabel('Search devices').fill('push');
+  await page.getByRole('button', { name: /^Push-up/ }).click();
+  await expect(page.getByLabel('Added weight', { exact: true })).toHaveValue('0');
+  await page.getByLabel('Reps', { exact: true }).fill('12');
+  await page.getByRole('button', { name: 'Log set 1' }).click();
+  await expect(page.getByText('BW × 12', { exact: true })).toBeVisible();
+  await finishWorkout(page);
+  await expect(page.getByTestId('total-volume')).toHaveText('12 reps');
+  await expect(page.getByRole('link', { name: /Push-up.*BW×12/ })).toBeVisible();
+
+  await page.goto('./#/device/push-up');
+  await expect(page.getByTestId('suggestion')).toHaveText('BW × 13+'); // default range 10–20
+  await page.getByLabel('Reps', { exact: true }).fill('15');
+  await page.getByRole('button', { name: 'Log set 1' }).click();
+  await expect(page.getByText('New PR!')).toBeVisible();
+  await finishWorkout(page);
+  await expect(page.getByText('15 reps (was 12)')).toBeVisible();
 });

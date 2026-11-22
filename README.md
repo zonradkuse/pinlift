@@ -23,10 +23,11 @@ An offline-first PWA for tracking gym progress. It has no backend, and data stay
   - Plan rows show each target; after a set there's a "Next" shortcut and a shortcut back to devices used minutes ago (supersets).
   - A workout left open is offered to be finished at its real end, so forgetting Finish doesn't spoil your history.
   - Finished workouts can be edited.
-- **Device catalog**: about 40 prefilled devices (gym80-style selectorized and plate-loaded machines, free weights, cardio).
+- **Device catalog**: about 50 prefilled devices (gym80-style selectorized and plate-loaded machines, free weights, bodyweight exercises, cardio).
   - Each has its own pictogram (figure, machine and an arrow for the movement; see below), a muscle map (primary and secondary muscles), a short description, form cues and a link to technique videos.
   - Per device you can store setup notes (e.g. "Seat 5"), adjust the step and rep range, or hide it.
   - Assisted machines (dip/chin assist) count progress as less assistance and add no lifted weight.
+  - Bodyweight exercises (push-up, pull-up, chin-up, dip, inverted row, squat, lunge, glute bridge, hanging leg raise, crunch, pike push-up) log *added* weight, starting at 0 and shown as "BW" or "BW + 5 kg". They have their own rep ranges and filter chip. Records are more added weight or more reps in one set, and progress is charted as most reps. They add no lifted weight; a workout with nothing lifted shows its reps instead.
   - One QR code can open several exercises (Smith machine, cable tower); when linking a new code mid-workout, the next devices of your plan are offered first.
 - **Workouts**: Upper body, Lower body, Core, Push, Pull, Full body and Cardio are included. You can build your own from muscle groups, reorder devices, or train freely.
   - The editor and the plan preview show a muscle map and the number of exercises per muscle group, and list groups the workout doesn't train. The summary after a workout shows the same with working sets. Cardio works the muscles of its device (the rower: back, legs, glutes) and counts as an exercise in a plan, but not as sets.
@@ -38,7 +39,8 @@ An offline-first PWA for tracking gym progress. It has no backend, and data stay
   - 32 badges: streaks, total tonnage (from "Elephant mover" up to "Blue whale"), 5K/10K, 2K row, and more.
   - A weekly training streak.
   - A workout summary that compares the total you lifted to everyday objects.
-- **Analytics**: a dashboard with workouts, total weight, records, streak and cardio distance. It also shows volume per week, training days as a calendar heatmap, sets per muscle group over the last 4 weeks, est. 1RM trend per device, best sets, recent records and recent workouts.
+- **Analytics**: a dashboard with workouts, total weight, records, streak and cardio distance. It also shows volume per week, training days as a calendar heatmap, sets per muscle group over the last 4 weeks, est. 1RM trend per device, body weight, best sets, recent records and recent workouts.
+- **Body weight**: one entry per day (weighing again replaces it, past days can be added). Analytics shows the latest weight, the change over 90 days and a small trend chart. Body weights sync with the rest of the data.
 - **Desktop**: from 840 px wide, a side navigation rail replaces the bottom bar and pages use the width (multi-column dashboard). The app opens on Analytics there.
   - Importing is always one click away: *Receive from phone* (scan the phone's codes with the webcam), *Import file*, or drag a file onto the page.
   - A status line shows the latest workout and when data was last imported, and warns when the import is more than 3 days old.
@@ -117,7 +119,7 @@ Dependencies point downwards only: `src/lib` never imports UI code.
 
 ### Data
 
-- **`AppData`** (synced): five collections of records: `sessions`, `workouts`, `customDevices`, `deviceSettings`, `qr`.
+- **`AppData`** (synced): six collections of records: `sessions`, `workouts`, `customDevices`, `deviceSettings`, `qr`, `bodyWeights` (keyed by day).
   - Every record carries `updatedAt`. Deletions are kept as tombstones (`deleted: true`) so that they sync.
   - The built-in device catalog lives in code; device ids are only ever added, never changed.
 - **`LocalState`** (never transferred): Strava credentials and tokens, preferences, backup timestamps.
@@ -132,7 +134,7 @@ Dependencies point downwards only: `src/lib` never imports UI code.
   - Damaged records are skipped and reported, so one bad record can't break the app.
   - Timestamps more than a day in the future are clamped.
   - If a screen still throws, a recovery screen offers a data export.
-- **Versions:** `schema` stays 1 as long as changes only add optional fields. Writes keep any fields they don't know, so an older app version doesn't strip data written by a newer one. Data with a newer schema is refused with a "please update" message.
+- **Versions:** `schema` stays 1 as long as changes only add optional fields. Writes keep any fields they don't know, so an older app version doesn't strip data written by a newer one. Data with a newer schema is refused with a "please update" message. Collections added later (`bodyWeights`) are optional on import, so older backups and transfers still load.
 - **Transfer format:**
   - JSON is converted to the wire format (`wire.ts`): times inside a workout become seconds after its start, which is lossless, and new records use short ids.
   - The result is compressed (deflate-raw), encoded as Base45 (RFC 9285, which packs bytes into QR's alphanumeric mode) and split into frames `GT2:<id>:<i>/<n>:<chunk>`.
@@ -159,8 +161,8 @@ Every machine has a pictogram drawn from data rather than an image file. `data/p
 
 ### Tests
 
-- **Unit tests:** about 85, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
-- **End-to-end tests:** 47 Playwright tests. They cover:
+- **Unit tests:** about 95, using Node's test runner directly on the TypeScript in `src/lib`, actions included. They cover domain rules, sync, validation and the wire format. Shared test data builders live in `src/lib/fixtures.ts`.
+- **End-to-end tests:** 49 Playwright tests. They cover:
   - scanning and data transfer, with Chromium's fake camera fed generated QR videos;
   - a redeploy on a server that caches like GitHub Pages;
   - offline mode, two open tabs, damaged imports, the crash screen and violations of the security policy.

@@ -60,11 +60,12 @@ export const bestSet = (sets: StrengthSet[], assisted?: boolean): StrengthSet | 
   sets.reduce<StrengthSet | undefined>((best, s) =>
     !best || isHarder(s.weight, best.weight, assisted) || (s.weight === best.weight && s.reps > best.reps) ? s : best, undefined);
 
-export type ProgressMetric = 'e1rm' | 'assist' | 'speed' | 'floors';
+export type ProgressMetric = 'e1rm' | 'assist' | 'reps' | 'speed' | 'floors';
 
 /** One point per session for the device's progress chart. */
 export function progressSeries(sessions: Iterable<Session>, dev: Device): { metric: ProgressMetric; points: { x: number; y: number }[] } {
-  const metric: ProgressMetric = dev.kind === 'cardio' ? (dev.cardio === 'stairs' ? 'floors' : 'speed') : dev.assisted ? 'assist' : 'e1rm';
+  const metric: ProgressMetric = dev.kind === 'cardio' ? (dev.cardio === 'stairs' ? 'floors' : 'speed')
+    : dev.assisted ? 'assist' : dev.bodyweight ? 'reps' : 'e1rm';
   const value = (entries: Session['entries']): number | undefined => {
     if (metric === 'speed' || metric === 'floors') {
       const v = entries.map((e) => e.cardio).filter((c) => c && (metric === 'floors' ? c.floors : c.distanceM > 0))
@@ -73,7 +74,8 @@ export function progressSeries(sessions: Iterable<Session>, dev: Device): { metr
     }
     const top = entries.flatMap((e) => e.sets).filter(isTopSet);
     if (!top.length) return undefined;
-    return metric === 'assist' ? Math.min(...top.map((x) => x.weight)) : Math.max(...top.map((x) => e1rm(x.weight, x.reps)));
+    return metric === 'assist' ? Math.min(...top.map((x) => x.weight))
+      : Math.max(...top.map((x) => (metric === 'reps' ? x.reps : e1rm(x.weight, x.reps))));
   };
   const points = live(sessions).flatMap((s) => {
     const y = value(s.entries.filter((e) => e.deviceId === dev.id));
@@ -82,13 +84,15 @@ export function progressSeries(sessions: Iterable<Session>, dev: Device): { metr
   return { metric, points };
 }
 
-/** Best regular set per machine (by estimated 1RM) and in how many sessions it was trained. Assisted machines have no 1RM. */
+/** Best regular set per machine (by estimated 1RM) and in how many sessions it was trained. Assisted machines and
+ *  bodyweight exercises have no 1RM. */
 export function bestSetsByDevice(sessions: Iterable<Session>, getDevice: DeviceLookup) {
   const out = new Map<string, { set: StrengthSet; e1rm: number; uses: number }>();
   for (const s of live(sessions)) {
     const used = new Set<string>();
     for (const e of s.entries) {
-      if (getDevice(e.deviceId)?.assisted) continue;
+      const d = getDevice(e.deviceId);
+      if (d?.assisted || d?.bodyweight) continue;
       for (const set of e.sets.filter(isTopSet)) {
         const v = e1rm(set.weight, set.reps), b = out.get(e.deviceId);
         if (!b || v > b.e1rm) out.set(e.deviceId, { set, e1rm: v, uses: b?.uses ?? 0 });
@@ -109,16 +113,17 @@ export const cardioLogs = (sessions: Iterable<Session>, deviceId: string): Cardi
 export const bestCardio = (logs: CardioEntry[]) => logs.filter((l) => l.log.distanceM >= MIN_SPEED_PR_DISTANCE)
   .reduce<CardioEntry | undefined>((b, l) => (!b || speedKmh(l.log.distanceM, l.log.durationSec) > speedKmh(b.log.distanceM, b.log.durationSec) ? l : b), undefined);
 
-export type PrKind = 'weight' | 'assist' | 'speed' | 'distance' | 'floors';
+export type PrKind = 'weight' | 'assist' | 'added' | 'reps' | 'speed' | 'distance' | 'floors';
 export interface PR { sessionId: string; deviceId: string; kind: PrKind; value: number; previous: number; at: number }
 
 export const MIN_SPEED_PR_DISTANCE = 1000;
 
-interface Best { weight: number; assist: number; speed: number; distance: number; floors: number }
+interface Best { weight: number; assist: number; reps: number; speed: number; distance: number; floors: number }
 
 /**
  * Personal records in chronological order; at most one per device and session. A device's first use is the baseline.
  * Strength records are the heaviest weight (least assistance on assisted machines); extra reps are progress, not records.
+ * Bodyweight exercises: more added weight, otherwise more reps in one set.
  */
 export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup): PR[] {
   const best = new Map<string, Best>();
@@ -126,11 +131,12 @@ export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup
   for (const s of live(sessions)) {
     const perDevice = new Map<string, Best>();
     for (const e of s.entries) {
-      const b = perDevice.get(e.deviceId) ?? { weight: 0, assist: Infinity, speed: 0, distance: 0, floors: 0 };
-      const assisted = getDevice?.(e.deviceId)?.assisted;
+      const b = perDevice.get(e.deviceId) ?? { weight: 0, assist: Infinity, reps: 0, speed: 0, distance: 0, floors: 0 };
+      const dev = getDevice?.(e.deviceId);
       for (const set of e.sets) {
         if (set.reps < 1 || !isTopSet(set)) continue;
-        if (assisted) b.assist = Math.min(b.assist, set.weight); else b.weight = Math.max(b.weight, set.weight); // see isHarder
+        if (dev?.assisted) b.assist = Math.min(b.assist, set.weight); else b.weight = Math.max(b.weight, set.weight); // see isHarder
+        if (dev?.bodyweight) b.reps = Math.max(b.reps, set.reps);
       }
       if (e.cardio) {
         b.distance = Math.max(b.distance, e.cardio.distanceM);
@@ -144,14 +150,17 @@ export function computePRs(sessions: Iterable<Session>, getDevice?: DeviceLookup
       if (prev) {
         const at = s.endedAt ?? s.startedAt;
         const pr = (kind: PrKind, value: number, previous: number) => out.push({ sessionId: s.id, deviceId, kind, value, previous, at });
-        if (cur.weight > prev.weight && prev.weight > 0) pr('weight', cur.weight, prev.weight);
+        if (getDevice?.(deviceId)?.bodyweight) {
+          if (cur.weight > prev.weight) pr('added', cur.weight, prev.weight);
+          else if (cur.reps > prev.reps && prev.reps > 0) pr('reps', cur.reps, prev.reps);
+        } else if (cur.weight > prev.weight && prev.weight > 0) pr('weight', cur.weight, prev.weight);
         else if (cur.assist < prev.assist && prev.assist < Infinity) pr('assist', cur.assist, prev.assist);
         else if (cur.speed > prev.speed && prev.speed > 0) pr('speed', cur.speed, prev.speed);
         else if (cur.distance > prev.distance && prev.distance > 0) pr('distance', cur.distance, prev.distance);
         else if (cur.floors > prev.floors && prev.floors > 0) pr('floors', cur.floors, prev.floors);
       }
       best.set(deviceId, prev ? {
-        weight: Math.max(prev.weight, cur.weight), assist: Math.min(prev.assist, cur.assist), speed: Math.max(prev.speed, cur.speed),
+        weight: Math.max(prev.weight, cur.weight), assist: Math.min(prev.assist, cur.assist), reps: Math.max(prev.reps, cur.reps), speed: Math.max(prev.speed, cur.speed),
         distance: Math.max(prev.distance, cur.distance), floors: Math.max(prev.floors, cur.floors),
       } : cur);
     }

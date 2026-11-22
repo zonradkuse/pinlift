@@ -20,14 +20,19 @@ export const allDevices = (d: AppData): Device[] =>
 
 export const deviceOptions = (d: AppData, dev: Device) => {
   const s = d.deviceSettings[dev.id];
-  return { step: s?.step ?? dev.step, repMin: s?.repMin ?? DEFAULT_REP_RANGE[0], repMax: s?.repMax ?? DEFAULT_REP_RANGE[1],
-    rest: s?.rest ?? DEFAULT_REST, assisted: !!dev.assisted };
+  const [repMin, repMax] = dev.reps ?? DEFAULT_REP_RANGE;
+  return { step: s?.step ?? dev.step, repMin: s?.repMin ?? repMin, repMax: s?.repMax ?? repMax,
+    rest: s?.rest ?? DEFAULT_REST, assisted: !!dev.assisted, bodyweight: !!dev.bodyweight };
 };
 
 export const activeSession = (d: AppData): Session | undefined =>
   Object.values(d.sessions).filter((s) => !s.deleted && !s.endedAt).sort((a, b) => b.startedAt - a.startedAt)[0];
 
 export const finishedSessions = (d: AppData) => finished(Object.values(d.sessions));
+
+/** Body weights, oldest first. */
+export const bodyWeights = (d: AppData) => Object.entries(d.bodyWeights).filter(([, w]) => !w.deleted)
+  .map(([day, w]) => ({ day, kg: w.kg, at: w.at })).sort((a, b) => a.at - b.at);
 
 export const workoutOf = (d: AppData, s?: Session): Workout | undefined => (s?.workoutId ? d.workouts[s.workoutId] : undefined);
 

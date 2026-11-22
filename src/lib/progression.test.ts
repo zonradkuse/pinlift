@@ -64,3 +64,12 @@ test('drop sets never drive the suggestion (also on assisted machines)', () => {
   const s = suggest([...sets([40, 12], [40, 12]), drop], { ...opts, step: 5, assisted: true })!;
   assert.deepEqual([s.kind, s.weight], ['increase', 35]);
 });
+
+test('bodyweight: the weight is added weight, never below zero; reasons say bodyweight', () => {
+  const bw = { step: 2.5, repMin: 8, repMax: 15, bodyweight: true };
+  const low = suggest(sets([0, 6], [0, 5]), bw)!;
+  assert.equal(low.weight, 0);
+  assert.match(low.reason, /at bodyweight/);
+  assert.deepEqual([suggest(sets([0, 15], [0, 16]), bw)!.weight, suggest(sets([0, 15], [0, 16]), bw)!.reps], [2.5, 8]);
+  assert.match(suggest(sets([2.5, 15], [2.5, 15]), bw)!.reason, /BW \+ 2.5 kg/);
+});

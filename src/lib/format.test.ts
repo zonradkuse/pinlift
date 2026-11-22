@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { errorText, fmtCardio, fmtPr, fmtSet, fmtSets, parseDecimal } from './format.ts';
+import { errorText, fmtAmount, fmtCardio, fmtPr, fmtSet, fmtSets, parseDecimal } from './format.ts';
 import { set } from './fixtures.ts';
 
 test('sets in long and compact form', () => {
@@ -41,4 +41,21 @@ test('fmtAgo: today, yesterday, days ago (local calendar days)', async () => {
   assert.equal(fmtAgo(new Date(2026, 10, 21, 8).getTime(), now), 'today');
   assert.equal(fmtAgo(new Date(2026, 10, 20, 23).getTime(), now), 'yesterday');
   assert.equal(fmtAgo(new Date(2026, 10, 16, 12).getTime(), now), '5 days ago');
+});
+
+test('bodyweight sets and records: BW plus added weight', () => {
+  const pr = { sessionId: 's', deviceId: 'd', at: 0 };
+  assert.equal(fmtSet(set(0, 12), { bw: true }), 'BW × 12');
+  assert.equal(fmtSet(set(5, 8), { bw: true }), 'BW + 5 kg × 8');
+  assert.equal(fmtSets([set(0, 12), set(2.5, 8)], { compact: true, bw: true }), 'BW×12 · BW+2.5×8');
+  assert.equal(fmtPr({ ...pr, kind: 'added', value: 5, previous: 0 }), 'BW + 5 kg (was BW)');
+  assert.equal(fmtPr({ ...pr, kind: 'reps', value: 15, previous: 12 }), '15 reps (was 12)');
+});
+
+test('what a workout amounted to: weight lifted, else reps (bodyweight), else distance or cardio time', () => {
+  const sum = { volume: 0, sets: 0, reps: 0, distanceM: 0, cardioSec: 0, durationSec: 0 };
+  assert.equal(fmtAmount({ ...sum, volume: 1200, sets: 3, reps: 30 }), '1,200 kg');
+  assert.equal(fmtAmount({ ...sum, sets: 3, reps: 36 }), '36 reps');
+  assert.equal(fmtAmount({ ...sum, distanceM: 2000, cardioSec: 480 }), '2.00 km');
+  assert.equal(fmtAmount({ ...sum, cardioSec: 1200 }), '20:00 cardio');
 });

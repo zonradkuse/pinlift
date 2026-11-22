@@ -20,7 +20,7 @@ export function Heatmap({ volumes, weeks, now = Date.now() }: { volumes: Map<str
     if (weekStart.getDate() <= 7) months.push([w, weekStart.toLocaleDateString('en', { month: 'short' })]);
     for (let d = 0; d < 7; d++) {
       const ts = weekStart.getTime() + d * DAY_MS;
-      if (ts > now) continue;
+      if (dayKey(ts) > dayKey(now)) continue; // ts is noon: before noon, today would be skipped
       const v = volumes.get(dayKey(ts)), trained = v !== undefined;
       const level = v ? LEVELS[Math.min(LEVELS.length - 1, Math.floor((v / max) * LEVELS.length))] : LEVELS[0];
       cells.push(

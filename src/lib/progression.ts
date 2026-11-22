@@ -1,7 +1,7 @@
 import type { StrengthSet } from './types.ts';
 import { bestSet, isHarder, isTopSet } from './stats.ts';
 
-export interface ProgressionOptions { step: number; repMin: number; repMax: number; assisted?: boolean }
+export interface ProgressionOptions { step: number; repMin: number; repMax: number; assisted?: boolean; bodyweight?: boolean }
 
 export interface Suggestion {
   kind: 'increase' | 'same' | 'decrease';
@@ -16,14 +16,14 @@ export const roundKg = (kg: number) => Math.round(kg * 100) / 100;
  * Double progression based on the hardest working sets of the previous session:
  * the heaviest weight, or for assisted machines the least assistance.
  */
-export function suggest(last: StrengthSet[], { step, repMin, repMax, assisted }: ProgressionOptions): Suggestion | null {
+export function suggest(last: StrengthSet[], { step, repMin, repMax, assisted, bodyweight }: ProgressionOptions): Suggestion | null {
   const work = last.filter(isTopSet);
   const best = bestSet(work, assisted);
   if (!best) return null;
   const top = best.weight;
   const reps = work.filter((s) => s.weight === top).map((s) => s.reps);
   const weakest = Math.min(...reps);
-  const what = assisted ? `${top} kg assistance` : `${top} kg`;
+  const what = assisted ? `${top} kg assistance` : bodyweight ? (top ? `BW + ${top} kg` : 'bodyweight') : `${top} kg`;
   const easier = (w: number) => (assisted ? roundKg(w + step) : Math.max(0, roundKg(w - step)));
   const harder = (w: number) => (assisted ? Math.max(0, roundKg(w - step)) : roundKg(w + step));
   if (weakest >= repMax) {

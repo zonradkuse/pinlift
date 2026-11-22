@@ -2,13 +2,13 @@
 import { getData, seedData, update, updateLocal } from './store.ts';
 import { activeSession } from './selectors.ts';
 import { isForgotten, toast } from './ui-state.ts';
-import { endTime } from './stats.ts';
+import { dayKey, endTime } from './stats.ts';
 import { mergeData } from './merge.ts';
 import { linkTo, tombstone, withDevice, withoutDevice } from './qr.ts';
 import { fmtDate, fmtTime } from './format.ts';
 import { entryId, uid } from './id.ts';
 import { stamp } from './sync.ts';
-import type { AppData, CustomDevice, Device, DeviceSettings, Entry, Session, StrengthSet, Workout } from './types.ts';
+import type { AppData, BodyWeight, CustomDevice, Device, DeviceSettings, Entry, Session, StrengthSet, Workout } from './types.ts';
 
 export type Undo = () => void;
 /** Times of sets and workouts are kept in whole seconds (enough for timers, and compact to transfer). */
@@ -138,6 +138,23 @@ export const setDeviceSettings = (id: string, patch: Partial<Omit<DeviceSettings
 
 export const saveCustomDevice = (dev: Device) =>
   update((d) => { const prev = d.customDevices[dev.id]; const custom: CustomDevice = { ...prev, ...dev, updatedAt: stamp(prev) }; d.customDevices[dev.id] = custom; });
+
+/** Body weight of a day (default: today). One entry per day: weighing again replaces it. */
+export function logBodyWeight(kg: number, day = dayKey(Date.now())) {
+  const [y, m, dd] = day.split('-').map(Number);
+  update((d) => {
+    const prev = d.bodyWeights[day];
+    const w: BodyWeight = { ...prev, kg, at: new Date(y, m - 1, dd, 12).getTime(), updatedAt: stamp(prev) };
+    delete w.deleted;
+    d.bodyWeights[day] = w;
+  });
+}
+
+export function deleteBodyWeight(day: string): Undo {
+  const prev = getData().bodyWeights[day];
+  update((d) => { const cur = d.bodyWeights[day]; if (cur) d.bodyWeights[day] = { ...cur, deleted: true, updatedAt: stamp(cur) }; });
+  return () => update((d) => { if (prev) d.bodyWeights[day] = { ...prev, updatedAt: stamp(d.bodyWeights[day]) }; });
+}
 
 /** Merges data from another device and tells the user what happened. */
 export function importAndReport(remote: AppData, dropped = 0): number {

@@ -120,3 +120,12 @@ test('muscleCoverage: cardio trains its muscles; it adds to counts only when cou
   assert.deepEqual([...done.trained].sort(), ['back', 'glutes', 'legs']);
   assert.ok(done.primary.has('quads'));
 });
+
+test('bodyweight exercises: progress is the most reps in a set; no 1RM', () => {
+  const pu = device('pu', { bodyweight: true });
+  const s = [session('a', 1, [lift('pu', [0, 10], [0, 12])]), session('b', 2, [lift('pu', [5, 8])])];
+  const { metric, points } = progressSeries(s, pu);
+  assert.equal(metric, 'reps');
+  assert.deepEqual(points.map((p) => p.y), [12, 8]);
+  assert.equal(bestSetsByDevice(s, () => pu).has('pu'), false);
+});

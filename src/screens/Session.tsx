@@ -37,7 +37,7 @@ export function SessionScreen() {
       if (await confirmDialog({ title: 'Discard empty workout?', body: 'Nothing has been logged yet.', confirm: 'Discard' })) { finishSession(s.id); navigate(to.home()); }
       return;
     }
-    if (await confirmDialog({ title: 'Finish workout?', body: `${sum.sets} sets, ${fmtKg(sum.volume)} lifted.`, confirm: 'Finish' })) {
+    if (await confirmDialog({ title: 'Finish workout?', body: `${sum.sets} sets, ${sum.volume ? `${fmtKg(sum.volume)} lifted` : `${sum.reps} reps`}.`, confirm: 'Finish' })) {
       finishSession(s.id);
       navigate(to.summary(s.id, true), true);
     }

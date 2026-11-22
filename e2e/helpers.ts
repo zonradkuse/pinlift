@@ -27,7 +27,7 @@ export const T0 = new Date('2026-11-20T18:00:00').getTime();
 export const freezeAt = (page: Page, offsetMs = 0) => page.clock.setFixedTime(T0 + offsetMs);
 
 export async function fillSet(page: Page, weight: number, reps?: number) {
-  await page.getByLabel(/^(Weight|Assistance)$/).fill(String(weight));
+  await page.getByLabel(/^(Weight|Assistance|Added weight)$/).fill(String(weight));
   if (reps !== undefined) await page.getByLabel('Reps', { exact: true }).fill(String(reps));
 }
 
