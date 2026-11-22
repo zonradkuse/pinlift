@@ -1,6 +1,6 @@
 # Pinlift
 
-An offline-first PWA for tracking gym progress. It has no backend, and data stays on your devices.
+An offline-first PWA for tracking gym progress. It has no backend, and data stays on your devices. This app is written using Claude and serves my requirements when going to the gym. Code quality wasn't one of those requirements. If anyone else is interested in using this or even contributing, I will happily cleanup the code a bit. For now, I just want to use it. Feel free to open an issue to get the conversation started! A demo is deployed using github pages: [pinlift.eu](https://pinlift.eu).
 
 ![Desktop analytics](docs/screenshots/desktop-analytics.png)
 ![Phone](docs/screenshots/overview-phone.png)
@@ -86,25 +86,6 @@ Strava's token exchange needs a client secret, so you use your own (free) Strava
 2. In Pinlift, go to Settings → Strava, paste the Client ID and Client Secret, and tap **Connect**.
 
 The secret and tokens are stored only on that device and are never included in QR or file transfers. On iPhone, the login may finish in Safari instead of the installed app. In that case the page shows a code to paste under *Settings → Strava → Got a code*.
-
-## Architecture
-
-There is no server. Each device holds a full copy of the data in IndexedDB, and devices sync by scanning QR codes or exchanging a file. Every rule that merging relies on therefore runs in the browser.
-
-```mermaid
-flowchart TD
-  UI["UI · src/screens, src/components<br/>Preact views; no domain rules"]
-  APP["App layer · store · actions · selectors · ui-state<br/>state container, mutations, pure reads, transient UI state"]
-  DOMAIN["Domain · stats · progression · badges · merge · sync · wire · transfer · base45 · format · cardio · strava<br/>pure TypeScript, unit-tested in Node"]
-  ADAPT["Browser adapters · db · router · pwa · strava-flow · backup<br/>IndexedDB, hash routing, service worker, OAuth redirect, downloads"]
-  UI --> APP
-  UI --> DOMAIN
-  APP --> DOMAIN
-  APP --> ADAPT
-  UI --> ADAPT
-```
-
-Dependencies point downwards only: `src/lib` never imports UI code.
 
 ### Layers
 
@@ -196,9 +177,3 @@ The `embedded` build has no service worker, CSP meta tag or frame refusal, so it
 The end-to-end tests feed Chromium's fake camera with generated QR-code videos, so device scanning and multi-code transfers are tested through the real camera pipeline.
 
 **Stack**: Preact + TypeScript + Vite, `uqr` (QR generation), and `jsqr` (QR decoding fallback when the native `BarcodeDetector` is unavailable, e.g. iOS and desktop Linux/Windows). The service worker, IndexedDB store, router, charts and Base45 codec are hand-written. The design follows Material Design 3: tokens are generated from seed `#F4511E` with neutral surfaces, and the orange primary is tuned to keep 4.5:1 contrast for button text. There are light and dark themes, a navigation rail on desktop, and Material Symbols icons. The machine pictograms are drawn for this app (`components/Pictogram.tsx`, `data/pictograms.ts`).
-
-## Notes
-
-- **Device images**: there are no photos or GIFs of the gym80 machines, because their imagery is copyrighted. Each device shows a muscle-map figure and form cues, plus a link to technique videos.
-- **QR codes on machines**: the app doesn't need to know what a machine's QR code contains. Any code can be linked to a device once.
-- **Data model**: PRs and badges are derived from workout history rather than stored, so merging data from two devices can't make them inconsistent.
